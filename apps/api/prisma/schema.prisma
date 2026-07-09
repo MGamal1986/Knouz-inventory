@@ -18,12 +18,14 @@ model Admin {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  name      String    @unique
-  baseCode  String    @unique
-  lastSeq   Int       @default(0)
-  products  Product[]
-  createdAt DateTime  @default(now())
+  id             Int       @id @default(autoincrement())
+  name           String    @unique
+  baseCode       String    @unique
+  codeRangeStart Int
+  codeRangeEnd   Int
+  lastSeq        Int       @default(0)
+  products       Product[]
+  createdAt      DateTime  @default(now())
 }
 
 model Supplier {

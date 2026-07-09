@@ -18,15 +18,30 @@ router.get("/", async (_req, res, next) => {
   }
 });
 
-const createSchema = z.object({
-  name: z.string().min(1),
-  baseCode: z.string().min(1).max(10).toUpperCase(),
-});
+const createSchema = z
+  .object({
+    name: z.string().min(1),
+    baseCode: z.string().min(1).max(10).toUpperCase(),
+    codeRangeStart: z.coerce.number().int().min(1),
+    codeRangeEnd: z.coerce.number().int().min(1),
+  })
+  .refine((data) => data.codeRangeEnd > data.codeRangeStart, {
+    message: "End code must be greater than start code",
+    path: ["codeRangeEnd"],
+  });
 
 router.post("/", async (req, res, next) => {
   try {
     const data = createSchema.parse(req.body);
-    const category = await prisma.category.create({ data });
+    const category = await prisma.category.create({
+      data: {
+        name: data.name,
+        baseCode: data.baseCode,
+        codeRangeStart: data.codeRangeStart,
+        codeRangeEnd: data.codeRangeEnd,
+        lastSeq: data.codeRangeStart - 1,
+      },
+    });
     res.status(201).json(category);
   } catch (err) {
     next(err);

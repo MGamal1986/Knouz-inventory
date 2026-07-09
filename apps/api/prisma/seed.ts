@@ -26,11 +26,11 @@ async function main() {
   if (categoryCount === 0) {
     await prisma.category.createMany({
       data: [
-        { name: "Rings", baseCode: "RNG" },
-        { name: "Bracelets", baseCode: "BRC" },
-        { name: "Necklaces", baseCode: "NCK" },
-        { name: "Keychains", baseCode: "KCH" },
-        { name: "Accessories", baseCode: "ACC" },
+        { name: "Rings", baseCode: "RNG", codeRangeStart: 1, codeRangeEnd: 9999 },
+        { name: "Bracelets", baseCode: "BRC", codeRangeStart: 1, codeRangeEnd: 9999 },
+        { name: "Necklaces", baseCode: "NCK", codeRangeStart: 1, codeRangeEnd: 9999 },
+        { name: "Keychains", baseCode: "KCH", codeRangeStart: 1, codeRangeEnd: 9999 },
+        { name: "Accessories", baseCode: "ACC", codeRangeStart: 1, codeRangeEnd: 9999 },
       ],
     });
     console.log("Seeded starter categories: Rings, Bracelets, Necklaces, Keychains, Accessories");

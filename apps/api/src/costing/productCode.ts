@@ -12,13 +12,22 @@ export async function generateNextProductCode(categoryId: number): Promise<strin
     }
 
     const nextSeq = category.lastSeq + 1;
+    if (nextSeq > category.codeRangeEnd) {
+      throw Object.assign(
+        new Error(
+          `Code range exhausted for category "${category.name}" (${category.codeRangeStart}-${category.codeRangeEnd})`
+        ),
+        { status: 400 }
+      );
+    }
 
     await tx.category.update({
       where: { id: categoryId },
       data: { lastSeq: nextSeq },
     });
 
-    const padded = String(nextSeq).padStart(4, "0");
+    const padLength = String(category.codeRangeEnd).length;
+    const padded = String(nextSeq).padStart(padLength, "0");
     return `${category.baseCode}-${padded}`;
   });
 }
