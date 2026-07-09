@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { errorHandler } from "./middleware/errorHandler";
+import { requireAuth } from "./middleware/auth";
 
 import authRoutes from "./modules/auth/auth.routes";
 import categoriesRoutes from "./modules/categories/categories.routes";
@@ -17,9 +18,9 @@ export const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Static file serving for uploaded invoice images and generated invoice PDFs
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
-app.use("/invoices", express.static(path.join(process.cwd(), "invoices")));
+// Static file serving for uploaded invoice images and generated invoice PDFs (auth required)
+app.use("/uploads", requireAuth, express.static(path.join(process.cwd(), "uploads")));
+app.use("/invoices", requireAuth, express.static(path.join(process.cwd(), "invoices")));
 
 app.get("/health", (_req, res) => res.json({ status: "ok" }));
 
