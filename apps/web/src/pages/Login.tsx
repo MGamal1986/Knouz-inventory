@@ -1,5 +1,5 @@
 import { useState, FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
 export function Login() {
@@ -8,13 +8,16 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
     try {
       await login(username, password);
-      navigate("/");
+      const redirect = searchParams.get("redirect");
+      const isSafeRedirect = !!redirect && redirect.startsWith("/") && !redirect.startsWith("//");
+      navigate(isSafeRedirect ? redirect : "/");
     } catch (err: any) {
       setError(err.response?.data?.error || "Login failed");
     }

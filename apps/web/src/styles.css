@@ -167,6 +167,28 @@ button.secondary {
   font-weight: 600;
 }
 
+.auth-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+}
+
+.spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #dfe3ea;
+  border-top-color: #1e2a38;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .badge.in-stock {
   background: #e3f7e8;
   color: #1c7c3d;

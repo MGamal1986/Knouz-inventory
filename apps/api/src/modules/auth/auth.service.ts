@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import { prisma } from "../../lib/prisma";
+import { signAccessToken, signRefreshToken, verifyRefreshToken } from "../../lib/tokens";
 
 export async function login(username: string, password: string) {
   const admin = await prisma.admin.findUnique({ where: { username } });
@@ -13,13 +13,29 @@ export async function login(username: string, password: string) {
     throw Object.assign(new Error("Invalid username or password"), { status: 401 });
   }
 
-  const token = jwt.sign(
-    { id: admin.id, username: admin.username },
-    process.env.JWT_SECRET as string,
-    { expiresIn: "12h" }
-  );
+  return issueTokens(admin.id, admin.username, admin.fullName);
+}
 
-  return { token, admin: { id: admin.id, username: admin.username, fullName: admin.fullName } };
+export async function refresh(refreshToken: string) {
+  let payload;
+  try {
+    payload = verifyRefreshToken(refreshToken);
+  } catch {
+    throw Object.assign(new Error("Invalid or expired session"), { status: 401 });
+  }
+
+  const admin = await prisma.admin.findUnique({ where: { id: payload.id } });
+  if (!admin || !admin.isActive) {
+    throw Object.assign(new Error("Invalid or expired session"), { status: 401 });
+  }
+
+  return issueTokens(admin.id, admin.username, admin.fullName);
+}
+
+function issueTokens(id: number, username: string, fullName: string | null) {
+  const accessToken = signAccessToken({ id, username });
+  const refreshToken = signRefreshToken({ id, username });
+  return { accessToken, refreshToken, admin: { id, username, fullName } };
 }
 
 export async function changePassword(adminId: number, currentPassword: string, newPassword: string) {

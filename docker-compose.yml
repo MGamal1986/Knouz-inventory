@@ -23,6 +23,7 @@ services:
     environment:
       DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
       JWT_SECRET: ${JWT_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
       PORT: ${PORT}
     volumes:
       - uploads:/app/uploads
@@ -38,7 +39,10 @@ services:
       context: ./apps/web
     restart: unless-stopped
     environment:
-      VITE_API_URL: ${VITE_API_URL}
+      # Vite dev server target for its /api, /uploads, /invoices proxy.
+      # Uses the docker network service name so browser traffic stays
+      # same-origin (localhost:3000) for the httpOnly auth cookies.
+      VITE_API_PROXY_TARGET: http://api:4000
     depends_on:
       - api
     ports:
