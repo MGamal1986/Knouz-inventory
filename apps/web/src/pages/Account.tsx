@@ -1,5 +1,10 @@
 import { useEffect, useState, FormEvent } from "react";
 import { api } from "../api/client";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { FormField, Input } from "../components/ui/FormField";
+import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
+import { Badge } from "../components/ui/Badge";
 
 interface Admin {
   id: number;
@@ -61,79 +66,92 @@ export function Account() {
   }
 
   return (
-    <div>
-      <h1>My Account</h1>
+    <div className="flex flex-col gap-lg">
+      <h2 className="text-headline-lg font-headline-lg text-primary">Account</h2>
 
-      <div className="card">
-        <h3>Change Password</h3>
-        <p style={{ fontSize: 13, color: "#666" }}>
-          If you're still using the default password (<b>0000</b>), change it now.
+      <Card className="p-lg">
+        <h3 className="text-headline-sm font-headline-sm text-primary mb-xs">Change Password</h3>
+        <p className="text-body-sm text-on-surface-variant mb-md">
+          If you're still using the default password (<b className="text-primary">0000</b>), change it now.
         </p>
-        <form onSubmit={onChangePassword}>
-          <label>Current Password</label>
-          <input
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-          />
-          <label>New Password</label>
-          <input
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={4}
-          />
-          {pwError && <div className="error">{pwError}</div>}
-          {pwMessage && <div style={{ color: "#1c7c3d", fontSize: 13 }}>{pwMessage}</div>}
-          <button type="submit">Update Password</button>
+        <form onSubmit={onChangePassword} className="flex flex-col gap-md max-w-[420px]">
+          <FormField label="Current Password">
+            <Input
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
+          </FormField>
+          <FormField label="New Password">
+            <Input
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={4}
+            />
+          </FormField>
+          {pwError && <div className="text-error text-body-sm">{pwError}</div>}
+          {pwMessage && <div className="text-success-emerald text-body-sm">{pwMessage}</div>}
+          <Button type="submit" className="w-fit">
+            Update Password
+          </Button>
         </form>
-      </div>
+      </Card>
 
-      <div className="card">
-        <h3>Add New Admin</h3>
-        <form onSubmit={onAddAdmin}>
-          <label>Username</label>
-          <input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required />
-          <label>Full Name</label>
-          <input value={newUserFullName} onChange={(e) => setNewUserFullName(e.target.value)} />
-          <label>Password</label>
-          <input
-            type="password"
-            value={newUserPassword}
-            onChange={(e) => setNewUserPassword(e.target.value)}
-            required
-            minLength={4}
-          />
-          {addError && <div className="error">{addError}</div>}
-          <button type="submit">Add Admin</button>
+      <Card className="p-lg">
+        <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Add New Admin</h3>
+        <form onSubmit={onAddAdmin} className="grid grid-cols-1 md:grid-cols-3 gap-lg items-end max-w-[720px]">
+          <FormField label="Username">
+            <Input value={newUsername} onChange={(e) => setNewUsername(e.target.value)} required />
+          </FormField>
+          <FormField label="Full Name">
+            <Input value={newUserFullName} onChange={(e) => setNewUserFullName(e.target.value)} />
+          </FormField>
+          <FormField label="Password">
+            <Input
+              type="password"
+              value={newUserPassword}
+              onChange={(e) => setNewUserPassword(e.target.value)}
+              required
+              minLength={4}
+            />
+          </FormField>
+          {addError && <div className="text-error text-body-sm md:col-span-3">{addError}</div>}
+          <Button type="submit" className="md:col-span-3 md:w-fit">
+            Add Admin
+          </Button>
         </form>
-      </div>
+      </Card>
 
-      <div className="card">
-        <h3>Existing Admins</h3>
-        <table>
-          <thead>
+      <Card className="overflow-x-auto">
+        <div className="p-lg border-b border-surface-border">
+          <h3 className="text-headline-sm font-headline-sm text-primary">Existing Admins</h3>
+        </div>
+        <Table>
+          <Thead>
             <tr>
-              <th>Username</th>
-              <th>Full Name</th>
-              <th>Active</th>
-              <th>Created</th>
+              <Th>Username</Th>
+              <Th>Full Name</Th>
+              <Th>Status</Th>
+              <Th>Created</Th>
             </tr>
-          </thead>
-          <tbody>
+          </Thead>
+          <Tbody>
             {admins.map((a) => (
-              <tr key={a.id}>
-                <td>{a.username}</td>
-                <td>{a.fullName}</td>
-                <td>{a.isActive ? "Yes" : "No"}</td>
-                <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-              </tr>
+              <Tr key={a.id}>
+                <Td className="text-primary font-medium">{a.username}</Td>
+                <Td className="text-on-surface-variant">{a.fullName}</Td>
+                <Td>
+                  <Badge tone={a.isActive ? "success" : "neutral"}>{a.isActive ? "Active" : "Inactive"}</Badge>
+                </Td>
+                <Td className="text-on-surface-variant">{new Date(a.createdAt).toLocaleDateString()}</Td>
+              </Tr>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </Tbody>
+        </Table>
+      </Card>
     </div>
   );
 }

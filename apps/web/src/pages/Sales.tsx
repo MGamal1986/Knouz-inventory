@@ -1,26 +1,15 @@
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { Card } from "../components/ui/Card";
+import { Icon } from "../components/ui/Icon";
+import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
+import { downloadInvoicePdf } from "../utils/invoice";
 
 interface Client {
   id: number;
   name: string;
   mobile: string;
-}
-interface Product {
-  id: number;
-  productCode: string;
-  description: string;
-  sellingPrice: string;
-  quantity: number;
-  quantitySold: number;
-}
-interface LineItem {
-  productId: number;
-  productCode: string;
-  description: string;
-  unitPrice: number;
-  quantity: number;
-  maxStock: number;
 }
 interface Sale {
   id: number;
@@ -30,221 +19,116 @@ interface Sale {
   client: Client;
 }
 
+function isToday(dateString: string) {
+  const date = new Date(dateString);
+  const now = new Date();
+  return (
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate()
+  );
+}
+
 export function Sales() {
-  const [clients, setClients] = useState<Client[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
   const [sales, setSales] = useState<Sale[]>([]);
-  const [clientId, setClientId] = useState("");
-  const [productToAdd, setProductToAdd] = useState("");
-  const [lineItems, setLineItems] = useState<LineItem[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
-  function loadAll() {
-    api.get("/api/clients").then((res) => setClients(res.data));
-    api.get("/api/products").then((res) => setProducts(res.data));
+  useEffect(() => {
     api.get("/api/sales").then((res) => setSales(res.data));
-  }
+  }, []);
 
-  useEffect(loadAll, []);
-
-  function addLineItem() {
-    const product = products.find((p) => String(p.id) === productToAdd);
-    if (!product) return;
-    const maxStock = product.quantity - product.quantitySold;
-    if (maxStock <= 0) {
-      setError(`${product.productCode} is out of stock`);
-      return;
-    }
-    setError(null);
-    setLineItems((prev) => {
-      const existing = prev.find((li) => li.productId === product.id);
-      if (existing) {
-        return prev.map((li) =>
-          li.productId === product.id
-            ? { ...li, quantity: Math.min(li.quantity + 1, maxStock) }
-            : li
-        );
-      }
-      return [
-        ...prev,
-        {
-          productId: product.id,
-          productCode: product.productCode,
-          description: product.description,
-          unitPrice: Number(product.sellingPrice),
-          quantity: 1,
-          maxStock,
-        },
-      ];
-    });
-    setProductToAdd("");
-  }
-
-  function updateQuantity(productId: number, qty: number) {
-    setLineItems((prev) =>
-      prev.map((li) => (li.productId === productId ? { ...li, quantity: qty } : li))
-    );
-  }
-
-  function removeLineItem(productId: number) {
-    setLineItems((prev) => prev.filter((li) => li.productId !== productId));
-  }
-
-  const total = lineItems.reduce((sum, li) => sum + li.unitPrice * li.quantity, 0);
-
-  async function submitSale() {
-    setError(null);
-    if (!clientId) {
-      setError("Please select a client");
-      return;
-    }
-    if (lineItems.length === 0) {
-      setError("Add at least one product");
-      return;
-    }
-    try {
-      const res = await api.post("/api/sales", {
-        clientId: Number(clientId),
-        items: lineItems.map((li) => ({ productId: li.productId, quantity: li.quantity })),
-      });
-      setLineItems([]);
-      setClientId("");
-      loadAll();
-      // Auto-download the generated invoice
-      downloadInvoice(res.data.id);
-    } catch (err: any) {
-      setError(err.response?.data?.error || "Failed to create sale");
-    }
-  }
-
-  function downloadInvoice(saleId: number) {
-    const token = localStorage.getItem("knouz_token");
-    const url = `${api.defaults.baseURL}/api/sales/${saleId}/invoice.pdf`;
-    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => res.blob())
-      .then((blob) => {
-        const link = document.createElement("a");
-        link.href = URL.createObjectURL(blob);
-        link.download = `invoice-${saleId}.pdf`;
-        link.click();
-      });
-  }
+  const todaysRevenue = sales
+    .filter((s) => isToday(s.createdAt))
+    .reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
   return (
-    <div>
-      <h1>Sales</h1>
-
-      <div className="card">
-        <h3>New Sale</h3>
-
-        <label>Client</label>
-        <select value={clientId} onChange={(e) => setClientId(e.target.value)} style={{ maxWidth: 320 }}>
-          <option value="">Select client...</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} ({c.mobile})
-            </option>
-          ))}
-        </select>
-
-        <div style={{ display: "flex", gap: 8, marginTop: 12, alignItems: "flex-end" }}>
-          <div>
-            <label>Add Product</label>
-            <select
-              value={productToAdd}
-              onChange={(e) => setProductToAdd(e.target.value)}
-              style={{ minWidth: 280 }}
-            >
-              <option value="">Select product...</option>
-              {products
-                .filter((p) => p.quantity - p.quantitySold > 0)
-                .map((p) => (
-                  <option key={p.id} value={p.id}>
-                    {p.productCode} — {p.description} ({p.quantity - p.quantitySold} in stock)
-                  </option>
-                ))}
-            </select>
-          </div>
-          <button type="button" onClick={addLineItem}>
-            Add
-          </button>
-        </div>
-
-        {lineItems.length > 0 && (
-          <table style={{ marginTop: 16 }}>
-            <thead>
-              <tr>
-                <th>Code</th>
-                <th>Description</th>
-                <th>Qty</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {lineItems.map((li) => (
-                <tr key={li.productId}>
-                  <td>{li.productCode}</td>
-                  <td>{li.description}</td>
-                  <td>
-                    <input
-                      type="number"
-                      min={1}
-                      max={li.maxStock}
-                      value={li.quantity}
-                      onChange={(e) => updateQuantity(li.productId, Number(e.target.value))}
-                      style={{ width: 60 }}
-                    />
-                  </td>
-                  <td>{li.unitPrice.toFixed(2)}</td>
-                  <td>{(li.unitPrice * li.quantity).toFixed(2)}</td>
-                  <td>
-                    <button className="secondary" onClick={() => removeLineItem(li.productId)}>
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-
-        <div style={{ marginTop: 12, fontWeight: 700 }}>Total: {total.toFixed(2)} EGP</div>
-
-        {error && <div className="error">{error}</div>}
-
-        <button style={{ marginTop: 12 }} onClick={submitSale}>
-          Complete Sale &amp; Generate Invoice
-        </button>
+    <div className="flex flex-col gap-lg">
+      <div>
+        <h2 className="text-headline-lg font-headline-lg text-primary mb-xs">Sales History</h2>
+        <p className="text-body-md font-body-md text-on-surface-variant">
+          Manage and review recent transactions.
+        </p>
       </div>
 
-      <div className="card">
-        <h3>Sales History</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Invoice #</th>
-              <th>Client</th>
-              <th>Total</th>
-              <th>Date</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sales.map((s) => (
-              <tr key={s.id}>
-                <td>{s.invoiceNumber}</td>
-                <td>{s.client.name}</td>
-                <td>{Number(s.totalAmount).toFixed(2)}</td>
-                <td>{new Date(s.createdAt).toLocaleString()}</td>
-                <td>
-                  <button onClick={() => downloadInvoice(s.id)}>Download PDF</button>
-                </td>
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter">
+        <div className="lg:col-span-4 flex flex-col gap-gutter">
+          <Card className="p-lg">
+            <h3 className="text-body-sm font-body-sm text-on-surface-variant mb-sm">Today's Revenue</h3>
+            <div className="text-display-lg font-display-lg text-primary">
+              EGP {todaysRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </div>
+          </Card>
+
+          <div className="bg-deep-charcoal text-white rounded-xl p-lg flex flex-col items-start justify-between min-h-[160px] relative overflow-hidden">
+            <div className="z-10 relative">
+              <h3 className="text-headline-sm font-headline-sm mb-xs">Record New Sale</h3>
+              <p className="text-body-sm font-body-sm text-outline-variant mb-md max-w-[200px]">
+                Streamlined checkout for walk-in clients.
+              </p>
+            </div>
+            <Link
+              to="/sales/new"
+              className="z-10 relative bg-artisan-gold text-deep-charcoal px-lg py-md rounded-lg font-headline-sm text-headline-sm flex items-center gap-sm hover:brightness-110 transition-all w-full justify-center"
+            >
+              <Icon name="point_of_sale" />
+              Start Checkout
+            </Link>
+            <Icon
+              name="diamond"
+              className="absolute -bottom-4 -right-4 text-[120px] text-white/5 select-none pointer-events-none"
+            />
+          </div>
+        </div>
+
+        <Card className="lg:col-span-8 flex flex-col overflow-hidden">
+          <div className="p-lg border-b border-surface-border">
+            <h3 className="text-headline-sm font-headline-sm text-primary">Recent Transactions</h3>
+          </div>
+          <Table>
+            <Thead>
+              <tr>
+                <Th>Invoice ID</Th>
+                <Th>Client</Th>
+                <Th>Date</Th>
+                <Th className="text-right">Total</Th>
+                <Th className="text-center">Actions</Th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </Thead>
+            <Tbody>
+              {sales.map((s) => (
+                <Tr key={s.id}>
+                  <Td className="text-code-label font-code-label text-primary">{s.invoiceNumber}</Td>
+                  <Td className="font-medium text-primary">{s.client.name}</Td>
+                  <Td className="text-on-surface-variant">{new Date(s.createdAt).toLocaleDateString()}</Td>
+                  <Td className="text-right font-medium text-primary">{Number(s.totalAmount).toFixed(2)}</Td>
+                  <Td className="text-center">
+                    <div className="flex items-center justify-center gap-sm opacity-0 group-hover:opacity-100 transition-all">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/sales/${s.id}/preview`)}
+                        className="text-on-surface-variant hover:text-primary"
+                        aria-label="View invoice"
+                      >
+                        <Icon name="visibility" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => downloadInvoicePdf(s.id, s.invoiceNumber)}
+                        className="text-artisan-gold hover:text-secondary"
+                        aria-label="Download PDF"
+                      >
+                        <Icon name="picture_as_pdf" />
+                      </button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+          <div className="px-lg py-md border-t border-surface-border text-body-sm text-on-surface-variant">
+            Showing {sales.length} sale{sales.length === 1 ? "" : "s"}
+          </div>
+        </Card>
       </div>
     </div>
   );

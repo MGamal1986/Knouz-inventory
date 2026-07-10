@@ -1,6 +1,9 @@
 import { useState, FormEvent } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { Icon } from "../components/ui/Icon";
+import { Input, Label } from "../components/ui/FormField";
+import { Button } from "../components/ui/Button";
 
 export function Login() {
   const [username, setUsername] = useState("admin");
@@ -24,23 +27,36 @@ export function Login() {
   }
 
   return (
-    <div className="login-wrapper">
-      <div className="login-box">
-        <h2>Knouz Inventory</h2>
-        <p style={{ fontSize: 13, color: "#666" }}>
-          Default login: <b>admin</b> / <b>0000</b> — change this after first login.
+    <div className="flex items-center justify-center min-h-screen bg-background px-md">
+      <div className="w-full max-w-[380px] bg-surface-container-lowest border border-surface-border rounded-xl shadow-sm p-xl">
+        <div className="flex items-center gap-md mb-lg">
+          <div className="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center border border-surface-border shrink-0">
+            <Icon name="diamond" filled className="text-primary text-[20px]" />
+          </div>
+          <div>
+            <h1 className="text-headline-md font-headline-md font-bold text-primary">Knouz</h1>
+            <p className="text-body-sm font-body-sm text-on-surface-variant">Artisan Utility</p>
+          </div>
+        </div>
+
+        <p className="text-body-sm font-body-sm text-on-surface-variant mb-lg">
+          Default login: <b className="text-primary">admin</b> / <b className="text-primary">0000</b> — change
+          this after first login.
         </p>
-        <form onSubmit={onSubmit}>
-          <label>Username</label>
-          <input value={username} onChange={(e) => setUsername(e.target.value)} />
-          <label>Password</label>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          {error && <div className="error">{error}</div>}
-          <button type="submit">Log in</button>
+
+        <form onSubmit={onSubmit} className="flex flex-col gap-md">
+          <div>
+            <Label>Username</Label>
+            <Input value={username} onChange={(e) => setUsername(e.target.value)} />
+          </div>
+          <div>
+            <Label>Password</Label>
+            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          </div>
+          {error && <div className="text-error text-body-sm">{error}</div>}
+          <Button type="submit" variant="primary" className="w-full mt-sm">
+            Log in
+          </Button>
         </form>
       </div>
     </div>

@@ -8,8 +8,8 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <div className="auth-loading">
-        <div className="spinner" />
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-surface-container-high border-t-deep-charcoal" />
       </div>
     );
   }
