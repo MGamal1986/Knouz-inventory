@@ -4,6 +4,13 @@ import { api } from "../api/client";
 import { KpiCard } from "../components/ui/KpiCard";
 import { Icon } from "../components/ui/Icon";
 
+interface CategoryStat {
+  categoryId: number;
+  categoryName: string;
+  unitsInStock: number;
+  totalOriginalCost: number;
+}
+
 interface Summary {
   totalProducts: number;
   totalStockUnits: number;
@@ -13,6 +20,7 @@ interface Summary {
   lowStockCount: number;
   salesCountThisMonth: number;
   revenueThisMonth: number;
+  categoryStats: CategoryStat[];
 }
 
 function formatEgp(value: number) {
@@ -65,6 +73,31 @@ export function Dashboard() {
         />
         <KpiCard label="Sales This Month" value={summary.salesCountThisMonth} icon="receipt_long" />
         <KpiCard label="Revenue This Month" value={formatEgp(summary.revenueThisMonth)} icon="bar_chart" dark />
+      </div>
+
+      <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
+        <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Stock by Category</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-md">
+          {summary.categoryStats.map((c) => (
+            <div
+              key={c.categoryId}
+              className="p-md rounded-lg border border-surface-border bg-surface-container-low"
+            >
+              <div className="flex items-center justify-between mb-sm">
+                <span className="text-body-md font-medium text-primary">{c.categoryName}</span>
+                <Icon name="category" className="text-artisan-gold text-[18px]" />
+              </div>
+              <div className="flex items-center justify-between text-body-sm text-on-surface-variant">
+                <span>Units</span>
+                <span className="font-semibold text-on-background">{c.unitsInStock}</span>
+              </div>
+              <div className="flex items-center justify-between text-body-sm text-on-surface-variant">
+                <span>Original Cost</span>
+                <span className="font-semibold text-on-background">{formatEgp(c.totalOriginalCost)}</span>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">

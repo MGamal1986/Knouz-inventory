@@ -90,7 +90,7 @@ export function Inventory() {
       supplierId: item.supplierId,
       purchaseDate: item.purchaseDate,
       originalCost: item.originalCost,
-      profitPercent: item.profitPercent,
+      sellingPrice: item.sellingPrice,
       quantity: item.quantity,
     });
     setModalOpen(true);

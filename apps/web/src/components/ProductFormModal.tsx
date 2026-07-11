@@ -21,7 +21,7 @@ export interface EditableProduct {
   supplierId: number;
   purchaseDate: string;
   originalCost: string;
-  profitPercent: string;
+  sellingPrice: string;
   quantity: number;
 }
 
@@ -39,7 +39,7 @@ const emptyForm = {
   supplierId: "",
   purchaseDate: new Date().toISOString().slice(0, 10),
   originalCost: "",
-  profitPercent: "20",
+  sellingPrice: "",
   quantity: "1",
 };
 
@@ -52,7 +52,7 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
           supplierId: String(editingProduct.supplierId),
           purchaseDate: editingProduct.purchaseDate.slice(0, 10),
           originalCost: editingProduct.originalCost,
-          profitPercent: editingProduct.profitPercent,
+          sellingPrice: editingProduct.sellingPrice,
           quantity: String(editingProduct.quantity),
         }
       : emptyForm
@@ -61,9 +61,9 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const computedSellingPrice =
-    form.originalCost && form.profitPercent
-      ? (Number(form.originalCost) * (1 + Number(form.profitPercent) / 100)).toFixed(2)
+  const computedProfitPercent =
+    form.originalCost && form.sellingPrice && Number(form.originalCost) > 0
+      ? ((Number(form.sellingPrice) / Number(form.originalCost) - 1) * 100).toFixed(2)
       : "0.00";
 
   async function onSubmit(e: FormEvent) {
@@ -77,7 +77,7 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
     fd.append("supplierId", form.supplierId);
     fd.append("purchaseDate", form.purchaseDate);
     fd.append("originalCost", form.originalCost);
-    fd.append("profitPercent", form.profitPercent);
+    fd.append("profitPercent", computedProfitPercent);
     fd.append("quantity", form.quantity);
     if (invoiceFile) fd.append("invoiceImage", invoiceFile);
 
@@ -184,19 +184,19 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
             />
           </FormField>
 
-          <FormField label="Required Profit %">
+          <FormField label="Selling Price (EGP)">
             <Input
               type="number"
               step="0.01"
-              value={form.profitPercent}
-              onChange={(e) => setForm({ ...form, profitPercent: e.target.value })}
+              value={form.sellingPrice}
+              onChange={(e) => setForm({ ...form, sellingPrice: e.target.value })}
               required
             />
           </FormField>
 
           <div className="md:col-span-2">
-            <FormField label="Selling Price (Calculated)">
-              <Input readOnly value={`EGP ${computedSellingPrice}`} className="cursor-not-allowed" />
+            <FormField label="Profit % (Calculated)">
+              <Input readOnly value={`${computedProfitPercent}%`} className="cursor-not-allowed" />
             </FormField>
           </div>
         </div>

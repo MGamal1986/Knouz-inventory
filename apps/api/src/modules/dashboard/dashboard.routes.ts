@@ -7,7 +7,10 @@ router.use(requireAuth);
 
 router.get("/summary", async (_req, res, next) => {
   try {
-    const products = await prisma.product.findMany();
+    const [products, categories] = await Promise.all([
+      prisma.product.findMany(),
+      prisma.category.findMany({ orderBy: { name: "asc" } }),
+    ]);
 
     const totalProducts = products.length;
     const totalStockUnits = products.reduce((sum, p) => sum + (p.quantity - p.quantitySold), 0);
@@ -28,6 +31,21 @@ router.get("/summary", async (_req, res, next) => {
     });
     const revenueThisMonth = salesThisMonth.reduce((sum, s) => sum + Number(s.totalAmount), 0);
 
+    const categoryStats = categories.map((cat) => {
+      const catProducts = products.filter((p) => p.categoryId === cat.id);
+      const unitsInStock = catProducts.reduce((sum, p) => sum + (p.quantity - p.quantitySold), 0);
+      const totalOriginalCost = catProducts.reduce(
+        (sum, p) => sum + (p.quantity - p.quantitySold) * Number(p.originalCost),
+        0
+      );
+      return {
+        categoryId: cat.id,
+        categoryName: cat.name,
+        unitsInStock,
+        totalOriginalCost: Math.round(totalOriginalCost * 100) / 100,
+      };
+    });
+
     res.json({
       totalProducts,
       totalStockUnits,
@@ -37,6 +55,7 @@ router.get("/summary", async (_req, res, next) => {
       lowStockCount,
       salesCountThisMonth: salesThisMonth.length,
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
+      categoryStats,
     });
   } catch (err) {
     next(err);
