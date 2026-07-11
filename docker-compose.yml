@@ -43,6 +43,12 @@ services:
       # Uses the docker network service name so browser traffic stays
       # same-origin (localhost:3000) for the httpOnly auth cookies.
       VITE_API_PROXY_TARGET: http://api:4000
+    volumes:
+      # Bind-mount source so Vite's dev server picks up local edits live.
+      # node_modules stays in the image (anonymous volume) so it isn't
+      # shadowed by the host bind mount.
+      - ./apps/web:/app
+      - /app/node_modules
     depends_on:
       - api
     ports:
