@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { KpiCard } from "../components/ui/KpiCard";
 import { Icon } from "../components/ui/Icon";
+import { RevenueExplorer } from "../components/RevenueExplorer";
 
 interface CategoryStat {
   categoryId: number;
@@ -74,6 +75,8 @@ export function Dashboard() {
         <KpiCard label="Sales This Month" value={summary.salesCountThisMonth} icon="receipt_long" />
         <KpiCard label="Revenue This Month" value={formatEgp(summary.revenueThisMonth)} icon="bar_chart" dark />
       </div>
+
+      <RevenueExplorer />
 
       <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
         <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Stock by Category</h3>

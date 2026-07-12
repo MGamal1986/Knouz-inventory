@@ -1,0 +1,32 @@
+# Session: Editable per-invoice line discounts, Sales/New-Sale responsiveness, Arabic PDF shaping fix
+
+---
+## Replace per-line discount checkbox with an editable per-invoice discount override
+**File(s):** apps/api/src/costing/pricing.ts, apps/api/src/modules/sales/sales.service.ts, apps/api/src/modules/sales/sales.routes.ts, apps/web/src/pages/NewSale.tsx
+**What changed:** At checkout each line item now has a fully editable discount (None / Percentage % / Fixed EGP + value) instead of the old apply/ignore checkbox. The value is pre-filled from the product's configured discount when the item is added, but editing it affects **only this invoice** — the product record's own `discountType`/`discountValue` are never written back. The sale API line-item schema changed from `applyDiscount: boolean` to explicit `discountType`/`discountValue` (both optional; when omitted the service falls back to the product's configured discount). Discount validation (`assertValidDiscount`) was extracted from products.service into the shared `costing/pricing.ts` and is now reused by both products and sales services.
+**Why:** User wanted to grant an ad-hoc discount on a specific sale line — e.g. a one-off deal for a walk-in — separate from the product-level discount which applies to every sale of that product. Product-level discount = default; per-invoice discount = override that doesn't mutate inventory.
+**Impact:** API contract change on `POST /api/sales` items (`applyDiscount` removed → `discountType`/`discountValue`). Snapshot fields on `SaleItem` (`originalUnitPrice`, `discountType`, `discountValue`, `discountAmount`, `unitPrice`) already existed from the earlier discount feature, so no schema change was needed. Verified end-to-end against the live dev DB: created two throwaway products (one with no discount, one with a 15% product-level discount), placed a sale that overrode both lines with ad-hoc FIXED discounts, confirmed the sale stored the overridden amounts while both products' own discount config stayed untouched; then deleted all test rows. Both apps typecheck clean.
+**Status:** Approved
+
+---
+## Make Sales History and New Sale pages responsive
+**File(s):** apps/web/src/pages/Sales.tsx, apps/web/src/pages/NewSale.tsx
+**What changed:** Sales History: the row action buttons (view / PDF / refund) were previously hidden behind `opacity-0 group-hover:opacity-100`, i.e. invisible and unusable on touch devices — now always visible. Below the `sm` breakpoint the transactions table is replaced by a stacked card list (invoice #, client, date, net/refunded total, status badge, and labelled action buttons). New Sale: line items render as a table on `sm`+ and as stacked cards on phones (qty stepper, per-line discount editor, running subtotal); the header and "Add Product" row now stack instead of squeezing on narrow screens.
+**Why:** User reported the sales pages were "not fully responsive"; the hover-only action buttons in particular were unreachable on mobile/touch.
+**Impact:** Frontend-only, no API changes. Both layouts are driven purely by Tailwind breakpoints (`sm:hidden` / `hidden sm:block`), so desktop behaviour is unchanged. Typechecks clean.
+**Status:** Approved
+
+---
+## Fix Arabic text rendering in invoice PDFs (reversed + disconnected letters)
+**File(s):** apps/api/src/lib/arabicText.ts, apps/api/src/lib/pdf.ts
+**What changed:** Rewrote the Arabic shaping so invoice PDFs render joined, correctly-ordered Arabic. Root cause (verified by testing fontkit/pdfkit directly): pdfkit delegates layout to fontkit, which for a run it detects as Arabic performs a *blanket whole-run reversal* (it is not a full bidi engine) — and the old code's manual `arabic-reshaper` + bidi reversal was fighting that, producing double-reversed, re-isolated (disconnected) letters. New `shapeArabic()` pipeline: (1) join to contextual presentation forms with arabic-reshaper on the original logical order; (2) reorder to true visual order with a real bidi pass (bidi-js) so embedded number/Latin runs stay LTR — this is what a naive reverse gets wrong (e.g. building number "11", karat "21", mobile digits); (3) reverse once more to pre-compensate fontkit's own whole-run reversal, which cancels out and leaves the exact intended visual order. All PDF text is now drawn with `{ features: [], lineBreak: false }` so pdfkit lays each string out as a single run (its per-word cache path would reverse each Arabic word individually and re-corrupt it). Added manual word-wrapping (measured on the shaped string) for the description column, since pdfkit's auto-wrap would break the visual ordering. The Amiri font (already bundled at apps/api/assets/fonts) remains the embedded Arabic-supporting font — no font change needed.
+**Why:** User reported Arabic product names and client addresses appearing reversed and with disconnected letters in generated invoice PDFs.
+**Impact:** Server-side only; `generateInvoicePdf` keeps the same signature so sales.service needs no change. Considered and rejected an HTML+Puppeteer approach (per user's explicit choice) to avoid baking ~150 MB of Chromium + ~20 apt libs into the API image and spawning a browser per PDF — the pdfkit fix keeps the image lightweight. Verified against the deployed container's compiled code using the real SALE-000001 data (client address "الاسكان والتعمير عمارة 11" + three Arabic product descriptions): the drawn glyph sequence read right-to-left reproduces every original string exactly, in joined presentation forms, with the "11" and all digits preserved LTR. SALE-000001.pdf was regenerated in the container's invoices volume. Known limitation: relies on fontkit performing a pure whole-run reversal for Arabic-detected runs (confirmed for this stack/version); a font/library upgrade that changes fontkit's bidi handling would need re-verification.
+**Status:** Approved
+
+---
+## Note: keep .claude/settings.local.json out of git
+**File(s):** .gitignore
+**What changed:** Added `.claude/settings.local.json` to `.gitignore`. This file is Claude Code (the AI CLI) per-machine permission config — not part of the Knouz app, read/executed by nothing in the codebase.
+**Why:** User asked what the `.claude` folder is and whether to commit it. It's assistant tooling config; the `.local.json` suffix is the convention for personal/machine-specific settings, so it should stay out of version control. Removing the folder has zero application impact.
+**Status:** Approved

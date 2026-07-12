@@ -33,6 +33,8 @@ router.get("/search", async (req, res, next) => {
   }
 });
 
+const discountTypeSchema = z.enum(["NONE", "PERCENTAGE", "FIXED"]);
+
 const createSchema = z.object({
   description: z.string().min(1),
   categoryId: z.coerce.number().int(),
@@ -41,6 +43,8 @@ const createSchema = z.object({
   originalCost: z.coerce.number().positive(),
   profitPercent: z.coerce.number().min(0),
   quantity: z.coerce.number().int().positive(),
+  discountType: discountTypeSchema.optional(),
+  discountValue: z.coerce.number().min(0).optional(),
 });
 
 router.post("/", upload.single("invoiceImage"), async (req, res, next) => {
@@ -62,6 +66,8 @@ const updateSchema = z.object({
   originalCost: z.coerce.number().positive().optional(),
   profitPercent: z.coerce.number().min(0).optional(),
   quantity: z.coerce.number().int().positive().optional(),
+  discountType: discountTypeSchema.optional(),
+  discountValue: z.coerce.number().min(0).optional(),
 });
 
 router.put("/:id", upload.single("invoiceImage"), async (req, res, next) => {

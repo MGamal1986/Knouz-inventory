@@ -6,7 +6,7 @@ import { Icon } from "../components/ui/Icon";
 import { Badge } from "../components/ui/Badge";
 import { Input, Select } from "../components/ui/FormField";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
-import { ProductFormModal, EditableProduct } from "../components/ProductFormModal";
+import { ProductFormModal, EditableProduct, DiscountType } from "../components/ProductFormModal";
 import { downloadCsv } from "../utils/csv";
 
 interface Category {
@@ -30,9 +30,26 @@ interface InventoryItem {
   originalCost: string;
   profitPercent: string;
   sellingPrice: string;
+  discountType: DiscountType;
+  discountValue: string;
   quantity: number;
   quantitySold: number;
   stock: number;
+}
+
+function discountedPrice(item: InventoryItem): number {
+  const price = Number(item.sellingPrice);
+  const value = Number(item.discountValue);
+  if (item.discountType === "PERCENTAGE") return Math.max(0, price * (1 - value / 100));
+  if (item.discountType === "FIXED") return Math.max(0, price - value);
+  return price;
+}
+
+function discountLabel(item: InventoryItem): string | null {
+  if (item.discountType === "PERCENTAGE" && Number(item.discountValue) > 0) return `-${item.discountValue}%`;
+  if (item.discountType === "FIXED" && Number(item.discountValue) > 0)
+    return `-${Number(item.discountValue).toFixed(2)} EGP`;
+  return null;
 }
 
 function stockBadge(stock: number) {
@@ -92,6 +109,8 @@ export function Inventory() {
       originalCost: item.originalCost,
       sellingPrice: item.sellingPrice,
       quantity: item.quantity,
+      discountType: item.discountType,
+      discountValue: item.discountValue,
     });
     setModalOpen(true);
   }
@@ -112,6 +131,8 @@ export function Inventory() {
         "Supplier",
         "Cost",
         "Selling Price",
+        "Discount",
+        "Price After Discount",
         "Quantity Purchased",
         "Quantity Sold",
         "Stock",
@@ -123,6 +144,8 @@ export function Inventory() {
         item.supplier.name,
         Number(item.originalCost).toFixed(2),
         Number(item.sellingPrice).toFixed(2),
+        discountLabel(item) || "None",
+        discountedPrice(item).toFixed(2),
         item.quantity,
         item.quantitySold,
         item.stock,
@@ -185,6 +208,7 @@ export function Inventory() {
               <Th>Supplier</Th>
               <Th className="text-right">Cost</Th>
               <Th className="text-right">Selling Price</Th>
+              <Th className="text-center">Discount</Th>
               <Th className="text-center">Stock Level</Th>
               <Th className="w-10" />
             </tr>
@@ -197,7 +221,21 @@ export function Inventory() {
                 <Td className="text-on-surface-variant">{item.category.name}</Td>
                 <Td className="text-on-surface-variant">{item.supplier.name}</Td>
                 <Td className="text-right text-on-surface-variant">{Number(item.originalCost).toFixed(2)}</Td>
-                <Td className="text-right font-medium">{Number(item.sellingPrice).toFixed(2)}</Td>
+                <Td className="text-right font-medium">
+                  {discountLabel(item) ? (
+                    <div className="flex flex-col items-end">
+                      <span className="text-on-surface-variant line-through text-body-sm">
+                        {Number(item.sellingPrice).toFixed(2)}
+                      </span>
+                      <span>{discountedPrice(item).toFixed(2)}</span>
+                    </div>
+                  ) : (
+                    Number(item.sellingPrice).toFixed(2)
+                  )}
+                </Td>
+                <Td className="text-center">
+                  {discountLabel(item) ? <Badge tone="warning">{discountLabel(item)}</Badge> : "—"}
+                </Td>
                 <Td className="text-center">{stockBadge(item.stock)}</Td>
                 <Td className="text-right">
                   <div className="flex items-center justify-end gap-sm">

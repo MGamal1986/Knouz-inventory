@@ -8,6 +8,8 @@ import { downloadInvoicePdf } from "../utils/invoice";
 interface SaleItem {
   id: number;
   quantity: number;
+  originalUnitPrice: string;
+  discountAmount: string;
   unitPrice: string;
   lineTotal: string;
   product: { productCode: string; description: string };
@@ -32,6 +34,9 @@ export function InvoicePreview() {
   if (!sale) {
     return <p className="text-on-surface-variant">Loading...</p>;
   }
+
+  const subtotal = sale.items.reduce((sum, item) => sum + Number(item.originalUnitPrice) * item.quantity, 0);
+  const totalDiscount = sale.items.reduce((sum, item) => sum + Number(item.discountAmount), 0);
 
   return (
     <div className="flex flex-col items-center">
@@ -112,6 +117,9 @@ export function InvoicePreview() {
                 <th className="text-right py-3 px-4 border-b border-surface-border font-code-label text-code-label text-on-surface-variant bg-surface-container-low w-[12%]">
                   Unit Price
                 </th>
+                <th className="text-right py-3 px-4 border-b border-surface-border font-code-label text-code-label text-on-surface-variant bg-surface-container-low w-[10%]">
+                  Discount
+                </th>
                 <th className="text-right py-3 px-4 border-b border-surface-border font-code-label text-code-label text-on-surface-variant bg-surface-container-low w-[13%]">
                   Subtotal
                 </th>
@@ -132,7 +140,19 @@ export function InvoicePreview() {
                     {item.quantity}
                   </td>
                   <td className="py-3 px-4 border-b border-surface-variant text-right font-body-sm text-body-sm">
-                    {Number(item.unitPrice).toFixed(2)}
+                    {Number(item.discountAmount) > 0 ? (
+                      <div className="flex flex-col items-end">
+                        <span className="line-through text-on-surface-variant">
+                          {Number(item.originalUnitPrice).toFixed(2)}
+                        </span>
+                        <span>{Number(item.unitPrice).toFixed(2)}</span>
+                      </div>
+                    ) : (
+                      Number(item.unitPrice).toFixed(2)
+                    )}
+                  </td>
+                  <td className="py-3 px-4 border-b border-surface-variant text-right font-body-sm text-body-sm text-artisan-gold">
+                    {Number(item.discountAmount) > 0 ? `-${Number(item.discountAmount).toFixed(2)}` : "—"}
                   </td>
                   <td className="py-3 px-4 border-b border-surface-variant text-right font-medium font-body-sm text-body-sm">
                     {Number(item.lineTotal).toFixed(2)}
@@ -145,6 +165,18 @@ export function InvoicePreview() {
 
         <section className="flex justify-end mt-auto pt-lg border-t border-surface-border">
           <div className="w-full md:w-[40%] bg-surface-container-low p-lg rounded">
+            {totalDiscount > 0 && (
+              <>
+                <div className="flex justify-between py-1 font-body-sm text-body-sm text-on-surface-variant">
+                  <span>Subtotal</span>
+                  <span>EGP {subtotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between py-1 font-body-sm text-body-sm text-artisan-gold">
+                  <span>Discount</span>
+                  <span>-EGP {totalDiscount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
             <div className="flex justify-between py-4">
               <span className="font-headline-sm text-headline-sm text-deep-charcoal font-bold">Total Due</span>
               <span className="font-headline-sm text-headline-sm text-artisan-gold font-bold">

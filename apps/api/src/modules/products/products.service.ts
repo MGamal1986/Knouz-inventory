@@ -1,6 +1,6 @@
 import { prisma } from "../../lib/prisma";
 import { generateNextProductCode } from "../../costing/productCode";
-import { calculateSellingPrice } from "../../costing/pricing";
+import { calculateSellingPrice, assertValidDiscount, DiscountType } from "../../costing/pricing";
 
 export interface CreateProductInput {
   description: string;
@@ -11,11 +11,16 @@ export interface CreateProductInput {
   profitPercent: number;
   quantity: number;
   invoiceImageUrl?: string;
+  discountType?: DiscountType;
+  discountValue?: number;
 }
 
 export async function createProduct(input: CreateProductInput) {
   const productCode = await generateNextProductCode(input.categoryId);
   const sellingPrice = calculateSellingPrice(input.originalCost, input.profitPercent);
+  const discountType = input.discountType ?? "NONE";
+  const discountValue = input.discountValue ?? 0;
+  assertValidDiscount(discountType, discountValue);
 
   return prisma.product.create({
     data: {
@@ -27,6 +32,8 @@ export async function createProduct(input: CreateProductInput) {
       originalCost: input.originalCost,
       profitPercent: input.profitPercent,
       sellingPrice,
+      discountType,
+      discountValue,
       quantity: input.quantity,
       invoiceImageUrl: input.invoiceImageUrl,
     },
@@ -43,6 +50,8 @@ export interface UpdateProductInput {
   profitPercent?: number;
   quantity?: number;
   invoiceImageUrl?: string;
+  discountType?: DiscountType;
+  discountValue?: number;
 }
 
 export async function updateProduct(id: number, input: UpdateProductInput) {
@@ -52,6 +61,9 @@ export async function updateProduct(id: number, input: UpdateProductInput) {
   const originalCost = input.originalCost ?? Number(existing.originalCost);
   const profitPercent = input.profitPercent ?? Number(existing.profitPercent);
   const sellingPrice = calculateSellingPrice(originalCost, profitPercent);
+  const discountType = input.discountType ?? (existing.discountType as DiscountType);
+  const discountValue = input.discountValue ?? Number(existing.discountValue);
+  assertValidDiscount(discountType, discountValue);
 
   return prisma.product.update({
     where: { id },
@@ -60,6 +72,8 @@ export async function updateProduct(id: number, input: UpdateProductInput) {
       originalCost,
       profitPercent,
       sellingPrice,
+      discountType,
+      discountValue,
     },
     include: { category: true, supplier: true },
   });

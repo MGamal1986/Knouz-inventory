@@ -48,6 +48,8 @@ const createSaleSchema = z.object({
       z.object({
         productId: z.coerce.number().int(),
         quantity: z.coerce.number().int().positive(),
+        discountType: z.enum(["NONE", "PERCENTAGE", "FIXED"]).optional(),
+        discountValue: z.coerce.number().min(0).optional(),
       })
     )
     .min(1),
@@ -57,6 +59,29 @@ router.post("/", async (req, res, next) => {
   try {
     const data = createSaleSchema.parse(req.body);
     const sale = await salesService.createSale(data);
+    res.status(201).json(sale);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const createRefundSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        saleItemId: z.coerce.number().int(),
+        quantity: z.coerce.number().int().positive(),
+      })
+    )
+    .min(1),
+  reason: z.string().trim().min(1).optional(),
+});
+
+router.post("/:id/refunds", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const data = createRefundSchema.parse(req.body);
+    const sale = await salesService.createRefund(id, data);
     res.status(201).json(sale);
   } catch (err) {
     next(err);

@@ -43,6 +43,12 @@ enum ProductStatus {
   PARTIALLY_SOLD
 }
 
+enum DiscountType {
+  NONE
+  PERCENTAGE
+  FIXED
+}
+
 model Product {
   id              Int           @id @default(autoincrement())
   productCode     String        @unique
@@ -55,6 +61,8 @@ model Product {
   originalCost    Decimal       @db.Decimal(10, 2)
   profitPercent   Decimal       @db.Decimal(5, 2)
   sellingPrice    Decimal       @db.Decimal(10, 2)
+  discountType    DiscountType  @default(NONE)
+  discountValue   Decimal       @default(0) @db.Decimal(10, 2)
   quantity        Int
   quantitySold    Int           @default(0)
   invoiceImageUrl String?
@@ -85,12 +93,28 @@ model Sale {
 }
 
 model SaleItem {
-  id        Int     @id @default(autoincrement())
-  saleId    Int
-  sale      Sale    @relation(fields: [saleId], references: [id])
-  productId Int
-  product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  unitPrice Decimal @db.Decimal(10, 2)
-  lineTotal Decimal @db.Decimal(10, 2)
+  id                Int          @id @default(autoincrement())
+  saleId            Int
+  sale              Sale         @relation(fields: [saleId], references: [id])
+  productId         Int
+  product           Product      @relation(fields: [productId], references: [id])
+  quantity          Int
+  originalUnitPrice Decimal      @db.Decimal(10, 2)
+  discountType      DiscountType @default(NONE)
+  discountValue     Decimal      @default(0) @db.Decimal(10, 2)
+  discountAmount    Decimal      @default(0) @db.Decimal(10, 2)
+  unitPrice         Decimal      @db.Decimal(10, 2)
+  lineTotal         Decimal      @db.Decimal(10, 2)
+  refundedQuantity  Int          @default(0)
+  refunds           Refund[]
+}
+
+model Refund {
+  id           Int      @id @default(autoincrement())
+  saleItemId   Int
+  saleItem     SaleItem @relation(fields: [saleItemId], references: [id])
+  quantity     Int
+  refundAmount Decimal  @db.Decimal(10, 2)
+  reason       String?
+  createdAt    DateTime @default(now())
 }

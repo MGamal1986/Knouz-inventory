@@ -14,6 +14,8 @@ interface Supplier {
   id: number;
   name: string;
 }
+export type DiscountType = "NONE" | "PERCENTAGE" | "FIXED";
+
 export interface EditableProduct {
   id: number;
   description: string;
@@ -23,6 +25,8 @@ export interface EditableProduct {
   originalCost: string;
   sellingPrice: string;
   quantity: number;
+  discountType: DiscountType;
+  discountValue: string;
 }
 
 interface ProductFormModalProps {
@@ -41,6 +45,8 @@ const emptyForm = {
   originalCost: "",
   sellingPrice: "",
   quantity: "1",
+  discountType: "NONE" as DiscountType,
+  discountValue: "0",
 };
 
 export function ProductFormModal({ categories, suppliers, editingProduct, onClose, onSaved }: ProductFormModalProps) {
@@ -54,6 +60,8 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
           originalCost: editingProduct.originalCost,
           sellingPrice: editingProduct.sellingPrice,
           quantity: String(editingProduct.quantity),
+          discountType: editingProduct.discountType,
+          discountValue: editingProduct.discountValue,
         }
       : emptyForm
   );
@@ -65,6 +73,14 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
     form.originalCost && form.sellingPrice && Number(form.originalCost) > 0
       ? ((Number(form.sellingPrice) / Number(form.originalCost) - 1) * 100).toFixed(2)
       : "0.00";
+
+  const discountedPrice = (() => {
+    const price = Number(form.sellingPrice) || 0;
+    const value = Number(form.discountValue) || 0;
+    if (form.discountType === "PERCENTAGE") return Math.max(0, price * (1 - value / 100));
+    if (form.discountType === "FIXED") return Math.max(0, price - value);
+    return price;
+  })();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -79,6 +95,8 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
     fd.append("originalCost", form.originalCost);
     fd.append("profitPercent", computedProfitPercent);
     fd.append("quantity", form.quantity);
+    fd.append("discountType", form.discountType);
+    fd.append("discountValue", form.discountType === "NONE" ? "0" : form.discountValue || "0");
     if (invoiceFile) fd.append("invoiceImage", invoiceFile);
 
     try {
@@ -194,11 +212,49 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
             />
           </FormField>
 
-          <div className="md:col-span-2">
-            <FormField label="Profit % (Calculated)">
-              <Input readOnly value={`${computedProfitPercent}%`} className="cursor-not-allowed" />
+          <FormField label="Profit % (Calculated)">
+            <Input readOnly value={`${computedProfitPercent}%`} className="cursor-not-allowed" />
+          </FormField>
+
+          <div />
+
+          <FormField label="Discount Type">
+            <Select
+              value={form.discountType}
+              onChange={(e) =>
+                setForm({ ...form, discountType: e.target.value as DiscountType, discountValue: "0" })
+              }
+            >
+              <option value="NONE">No discount</option>
+              <option value="PERCENTAGE">Percentage (%)</option>
+              <option value="FIXED">Fixed amount (EGP)</option>
+            </Select>
+          </FormField>
+
+          {form.discountType !== "NONE" && (
+            <FormField label={form.discountType === "PERCENTAGE" ? "Discount (%)" : "Discount (EGP)"}>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                max={form.discountType === "PERCENTAGE" ? "100" : undefined}
+                value={form.discountValue}
+                onChange={(e) => setForm({ ...form, discountValue: e.target.value })}
+              />
             </FormField>
-          </div>
+          )}
+
+          {form.discountType !== "NONE" && (
+            <div className="md:col-span-2">
+              <FormField label="Price After Discount">
+                <Input
+                  readOnly
+                  value={`EGP ${discountedPrice.toFixed(2)}`}
+                  className="cursor-not-allowed text-success-emerald font-medium"
+                />
+              </FormField>
+            </div>
+          )}
         </div>
 
         <FormField label="Invoice Upload">

@@ -9,3 +9,4 @@ invoices/
 apps/api/prisma/dev.db
 docker-volumes/
 stitch-designs
+.claude/settings.local.json
