@@ -42,10 +42,12 @@ Both pages: add via the form at the top, edit via the pencil icon on any row (pr
 ## 4. Buying cycle — adding stock
 
 1. Go to **Inventory** (`/inventory`).
-2. Click **Add Product** — opens a dialog: description, category, supplier, purchase date, original cost, quantity purchased, selling price, and an invoice image upload. Profit % is calculated live as you type ((selling price ÷ original cost − 1) × 100) — you never enter it directly.
+2. Click **Add Product** — opens a dialog: description, category, supplier, purchase date, original cost, quantity purchased, selling price, an optional discount (percentage or fixed EGP amount), and an invoice image upload. Profit % is calculated live as you type ((selling price ÷ original cost − 1) × 100) — you never enter it directly.
 3. Submit — the system auto-generates the next code in that category's range (e.g. `RNG-0007`) and the product appears in the table immediately with full stock.
 4. To fix a mistake later: the pencil icon on any row reopens the same dialog prefilled, for both the details and a new invoice image if needed. The trash icon deletes it.
 5. Use the search box (by code or description) and the category filter to narrow the table down; **Export CSV** exports exactly what's currently showing (respects search/filter).
+
+**Discounts** are a per-product setting, not a one-off event: whatever percentage/fixed discount is set on a product here automatically applies every time that product is sold, on every future invoice — until it's changed or cleared here again. A discounted product shows its original price struck through next to the discounted price in the Inventory table.
 
 ---
 
@@ -55,19 +57,28 @@ Both pages: add via the form at the top, edit via the pencil icon on any row (pr
 2. Click **New Sale** (sidebar button, or the "Record New Sale" shortcut on the Sales page) → opens `/sales/new`, a dedicated checkout screen.
 3. Pick the client from the dropdown.
 4. Add products to the cart one at a time from the product picker (only items with stock show up); adjust quantity with the +/- steppers, remove a line with the × — the system won't let you exceed available stock.
-5. Review the subtotal/total, click **Complete Sale**.
-6. Behind the scenes, in one transaction: stock is deducted, each product's status flips to In Stock / Partially Sold / Sold Out as appropriate, an invoice number is issued, and a PDF is generated.
-7. You land on the **Invoice Preview** (`/sales/:id/preview`) — a styled, print-ready view of that invoice. **Print** opens the browser print dialog; **Download PDF** saves the generated file.
-8. Every past sale stays in **Sales** (`/sales`) history: Today's Revenue card, and a table with a "view" icon (reopens that invoice preview) and a "download" icon (grabs the PDF directly) per row.
+5. Each line's discount defaults to whatever discount (if any) is configured on that product, but it's fully editable right there in the cart — type/percentage/amount can be changed or cleared per line. This only affects the current invoice; it never changes the product's own discount setting.
+6. Review the subtotal / discount / total, click **Complete Sale**.
+7. Behind the scenes, in one transaction: stock is deducted, each product's status flips to In Stock / Partially Sold / Sold Out as appropriate, an invoice number is issued, and a PDF is generated.
+8. You land on the **Invoice Preview** (`/sales/:id/preview`) — a styled, print-ready view of that invoice, itemizing any discount per line and in the total. **Print** opens the browser print dialog; **Download PDF** saves the generated file (Arabic product names/addresses render correctly, joined and right-to-left).
+9. Every past sale stays in **Sales** (`/sales`) history: Today's Revenue card, and a table with a "view" icon (reopens that invoice preview), a "download" icon (grabs the PDF directly), and a "refund" icon per row.
+
+### 5.1 Refunds
+
+Any past sale can be partially or fully refunded from **Sales** (`/sales`) — click the refund icon on a row to open the refund dialog, which lists every line item on that invoice with its sold quantity and how much is still refundable.
+
+1. Enter the quantity to refund for one or more line items (partial refunds are fine — e.g. refund 1 of 3 sold).
+2. Confirm — the system, in one transaction: adds the refunded quantity back to that product's available stock (at its existing cost/price — refunding never touches product pricing or discount config), records the refund, and deducts the amount actually paid for those units (i.e. after any discount that applied) from revenue.
+3. The sale's row in Sales History then shows a "Refunded" badge with the original total struck through next to the net total. A sale can be refunded again later for any remaining un-refunded quantity.
 
 ---
 
 ## 6. Ongoing monitoring
 
-- **Dashboard** (`/`) — 8 KPI tiles pulled live from the database: total products, total stock units, stock value, in-stock count, sold-out count, low-stock count (≤2 units), sales this month, revenue this month. Below that, a **Stock by Category** card grid shows units in stock and total original cost per category. "Add Item" jumps to Inventory.
+- **Dashboard** (`/`) — 8 KPI tiles pulled live from the database: total products, total stock units, stock value, in-stock count, sold-out count, low-stock count (≤2 units), sales this month, revenue this month (net of any refunds). Below that, a **Revenue Explorer** card lets you filter revenue by time range (today/week/month/year/custom dates), category, client, or product, showing gross revenue, refunded amount, and net revenue for whatever's selected. Below that, a **Stock by Category** card grid shows units in stock and total original cost per category. "Add Item" jumps to Inventory.
 - **Inventory** — search/filter any time to check live stock, cost, and selling price per item; export the current view to CSV for offline reporting.
 - **Clients** — export the directory to CSV any time.
-- **Sales** — Today's Revenue at a glance, full transaction history, re-view or re-download any past invoice.
+- **Sales** — Today's Revenue at a glance (net of refunds), full transaction history, re-view or re-download any past invoice, or refund one.
 - **Account** (`/account`) — change your own password, and (as admin) create additional admin logins. No separate "staff" role exists yet — every logged-in admin has full access.
 
 ---
@@ -75,7 +86,7 @@ Both pages: add via the form at the top, edit via the pencil icon on any row (pr
 ## 7. What the UI deliberately does *not* show
 
 Kept out because the backend doesn't track it (rather than faking it with placeholder data):
-- Tax, discount, or payment method on a sale.
+- Tax or payment method on a sale.
 - A due date on an invoice.
 - Client email (only name/mobile/address are stored).
 - Pagination (the API returns full result sets; tables show a real count instead of fake page controls).
