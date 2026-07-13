@@ -17,9 +17,22 @@ export interface CreateSaleInput {
   items: SaleItemInput[];
 }
 
-async function nextInvoiceNumber(): Promise<string> {
+// Filesystem/header-safe: invoiceNumber doubles as the downloaded PDF's filename.
+function sanitizeForInvoiceNumber(value: string): string {
+  return value.trim().replace(/[\\/:*?"<>|\s]/g, "");
+}
+
+function clientFirstName(fullName: string): string {
+  const first = fullName.trim().split(/\s+/)[0] || "";
+  return sanitizeForInvoiceNumber(first) || "Client";
+}
+
+async function nextInvoiceNumber(client: { name: string; mobile: string }): Promise<string> {
   const count = await prisma.sale.count();
-  return `SALE-${String(count + 1).padStart(6, "0")}`;
+  const sequence = String(count + 1).padStart(6, "0");
+  const firstName = clientFirstName(client.name);
+  const mobile = sanitizeForInvoiceNumber(client.mobile) || "0";
+  return `${firstName}-${mobile}-${sequence}`;
 }
 
 export async function createSale(input: CreateSaleInput) {
@@ -112,7 +125,7 @@ export async function createSale(input: CreateSaleInput) {
     totalAmount = Math.round(totalAmount * 100) / 100;
     subtotalAmount = Math.round(subtotalAmount * 100) / 100;
     totalDiscount = Math.round(totalDiscount * 100) / 100;
-    const invoiceNumber = await nextInvoiceNumber();
+    const invoiceNumber = await nextInvoiceNumber(client);
 
     const sale = await tx.sale.create({
       data: {

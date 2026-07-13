@@ -19,8 +19,6 @@ router.get("/summary", async (_req, res, next) => {
       0
     );
     const soldCount = products.filter((p) => p.status === "SOLD").length;
-    const inStockCount = products.filter((p) => p.status === "IN_STOCK").length;
-    const lowStockCount = products.filter((p) => p.quantity - p.quantitySold <= 2 && p.quantity - p.quantitySold > 0).length;
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -56,12 +54,24 @@ router.get("/summary", async (_req, res, next) => {
       totalStockUnits,
       totalStockValue: Math.round(totalStockValue * 100) / 100,
       soldCount,
-      inStockCount,
-      lowStockCount,
       salesCountThisMonth,
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
       categoryStats,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// Sold-out products, for the dashboard's restock section.
+router.get("/sold-out", async (_req, res, next) => {
+  try {
+    const products = await prisma.product.findMany({
+      where: { status: "SOLD" },
+      include: { category: true, supplier: true },
+      orderBy: { updatedAt: "desc" },
+    });
+    res.json(products);
   } catch (err) {
     next(err);
   }

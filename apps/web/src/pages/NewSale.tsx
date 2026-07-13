@@ -13,10 +13,16 @@ interface Client {
 }
 type DiscountType = "NONE" | "PERCENTAGE" | "FIXED";
 
+interface Category {
+  id: number;
+  name: string;
+}
+
 interface Product {
   id: number;
   productCode: string;
   description: string;
+  categoryId: number;
   sellingPrice: string;
   discountType: DiscountType;
   discountValue: string;
@@ -44,8 +50,10 @@ function discountedUnitPrice(li: Pick<LineItem, "originalUnitPrice" | "discountT
 
 export function NewSale() {
   const [clients, setClients] = useState<Client[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [clientId, setClientId] = useState("");
+  const [categoryToAdd, setCategoryToAdd] = useState("");
   const [productToAdd, setProductToAdd] = useState("");
   const [lineItems, setLineItems] = useState<LineItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +62,13 @@ export function NewSale() {
 
   useEffect(() => {
     api.get("/api/clients").then((res) => setClients(res.data));
+    api.get("/api/categories").then((res) => setCategories(res.data));
     api.get("/api/products").then((res) => setProducts(res.data));
   }, []);
+
+  const availableProducts = categoryToAdd
+    ? products.filter((p) => String(p.categoryId) === categoryToAdd)
+    : [];
 
   function addLineItem() {
     const product = products.find((p) => String(p.id) === productToAdd);
@@ -174,10 +187,32 @@ export function NewSale() {
         <div className="flex-grow bg-surface-container-lowest border border-surface-border rounded-xl p-lg flex flex-col gap-md">
           <div className="flex flex-col sm:flex-row gap-sm sm:items-end">
             <div className="flex-1">
+              <FormField label="Category">
+                <Select
+                  value={categoryToAdd}
+                  onChange={(e) => {
+                    setCategoryToAdd(e.target.value);
+                    setProductToAdd("");
+                  }}
+                >
+                  <option value="">Select category...</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </Select>
+              </FormField>
+            </div>
+            <div className="flex-1">
               <FormField label="Add Product">
-                <Select value={productToAdd} onChange={(e) => setProductToAdd(e.target.value)}>
-                  <option value="">Select product...</option>
-                  {products
+                <Select
+                  value={productToAdd}
+                  onChange={(e) => setProductToAdd(e.target.value)}
+                  disabled={!categoryToAdd}
+                >
+                  <option value="">{categoryToAdd ? "Select product..." : "Select a category first"}</option>
+                  {availableProducts
                     .filter((p) => p.quantity - p.quantitySold > 0)
                     .map((p) => (
                       <option key={p.id} value={p.id}>

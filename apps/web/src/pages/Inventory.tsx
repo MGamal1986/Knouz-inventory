@@ -6,6 +6,7 @@ import { Icon } from "../components/ui/Icon";
 import { Badge } from "../components/ui/Badge";
 import { Input, Select } from "../components/ui/FormField";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
+import { Pagination } from "../components/ui/Pagination";
 import { ProductFormModal, EditableProduct, DiscountType } from "../components/ProductFormModal";
 import { downloadCsv } from "../utils/csv";
 
@@ -58,12 +59,15 @@ function stockBadge(stock: number) {
   return <Badge tone="success">In Stock ({stock})</Badge>;
 }
 
+const PAGE_SIZE = 20;
+
 export function Inventory() {
   const [items, setItems] = useState<InventoryItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(null);
 
@@ -87,6 +91,13 @@ export function Inventory() {
     loadInventory();
     loadLookups();
   }, []);
+
+  const totalUnitsPurchased = items.reduce((sum, item) => sum + item.quantity, 0);
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedItems = items.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const rangeStart = items.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, items.length);
 
   async function onDelete(id: number) {
     if (!confirm("Delete this product?")) return;
@@ -167,6 +178,7 @@ export function Inventory() {
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
+              setPage(1);
               loadInventory(e.target.value, categoryId);
             }}
             placeholder="Search by code or description..."
@@ -176,6 +188,7 @@ export function Inventory() {
             value={categoryId}
             onChange={(e) => {
               setCategoryId(e.target.value);
+              setPage(1);
               loadInventory(search, e.target.value);
             }}
             className="w-48"
@@ -214,7 +227,7 @@ export function Inventory() {
             </tr>
           </Thead>
           <Tbody>
-            {items.map((item) => (
+            {pagedItems.map((item) => (
               <Tr key={item.id}>
                 <Td className="text-code-label font-code-label text-primary">{item.productCode}</Td>
                 <Td className="font-medium text-primary">{item.description}</Td>
@@ -261,8 +274,12 @@ export function Inventory() {
             ))}
           </Tbody>
         </Table>
-        <div className="px-lg py-md border-t border-surface-border text-body-sm text-on-surface-variant">
-          Showing {items.length} product{items.length === 1 ? "" : "s"}
+        <div className="px-lg py-md border-t border-surface-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-sm text-body-sm text-on-surface-variant">
+          <span>
+            Showing {rangeStart}-{rangeEnd} of {items.length} product{items.length === 1 ? "" : "s"} (
+            {totalUnitsPurchased} total units purchased)
+          </span>
+          <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
         </div>
       </Card>
 

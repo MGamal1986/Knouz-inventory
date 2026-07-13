@@ -94,7 +94,9 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
     fd.append("purchaseDate", form.purchaseDate);
     fd.append("originalCost", form.originalCost);
     fd.append("profitPercent", computedProfitPercent);
-    fd.append("quantity", form.quantity);
+    // Quantity is only settable at creation; once a product exists, stock is only added
+    // via the Restock action on sold-out items in the dashboard.
+    if (!editingProduct) fd.append("quantity", form.quantity);
     fd.append("discountType", form.discountType);
     fd.append("discountValue", form.discountType === "NONE" ? "0" : form.discountValue || "0");
     if (invoiceFile) fd.append("invoiceImage", invoiceFile);
@@ -183,13 +185,19 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
             />
           </FormField>
 
-          <FormField label="Quantity Purchased">
+          <FormField label={editingProduct ? "Quantity Purchased (fixed)" : "Quantity Purchased"}>
             <Input
               type="number"
               value={form.quantity}
               onChange={(e) => setForm({ ...form, quantity: e.target.value })}
+              disabled={!!editingProduct}
               required
             />
+            {editingProduct && (
+              <p className="text-body-sm text-on-surface-variant mt-xs">
+                Quantity can't be edited here — restock sold-out items from the dashboard instead.
+              </p>
+            )}
           </FormField>
 
           <FormField label="Original Cost (EGP)">

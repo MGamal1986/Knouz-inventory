@@ -65,7 +65,6 @@ const updateSchema = z.object({
   purchaseDate: z.coerce.date().optional(),
   originalCost: z.coerce.number().positive().optional(),
   profitPercent: z.coerce.number().min(0).optional(),
-  quantity: z.coerce.number().int().positive().optional(),
   discountType: discountTypeSchema.optional(),
   discountValue: z.coerce.number().min(0).optional(),
 });
@@ -79,6 +78,21 @@ router.put("/:id", upload.single("invoiceImage"), async (req, res, next) => {
       ...data,
       ...(invoiceImageUrl ? { invoiceImageUrl } : {}),
     });
+    res.json(product);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const restockSchema = z.object({
+  quantity: z.coerce.number().int().positive(),
+});
+
+router.post("/:id/restock", async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const { quantity } = restockSchema.parse(req.body);
+    const product = await productsService.restockProduct(id, quantity);
     res.json(product);
   } catch (err) {
     next(err);

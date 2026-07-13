@@ -5,6 +5,7 @@ import { Card } from "../components/ui/Card";
 import { Icon } from "../components/ui/Icon";
 import { Badge } from "../components/ui/Badge";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
+import { Pagination } from "../components/ui/Pagination";
 import { RefundModal } from "../components/RefundModal";
 import { downloadInvoicePdf } from "../utils/invoice";
 
@@ -33,8 +34,11 @@ function isToday(dateString: string) {
   );
 }
 
+const PAGE_SIZE = 6;
+
 export function Sales() {
   const [sales, setSales] = useState<Sale[]>([]);
+  const [page, setPage] = useState(1);
   const [refundSaleId, setRefundSaleId] = useState<number | null>(null);
   const navigate = useNavigate();
 
@@ -47,6 +51,11 @@ export function Sales() {
   }, []);
 
   const todaysRevenue = sales.filter((s) => isToday(s.createdAt)).reduce((sum, s) => sum + s.netTotal, 0);
+  const totalPages = Math.max(1, Math.ceil(sales.length / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const pagedSales = sales.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const rangeStart = sales.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(currentPage * PAGE_SIZE, sales.length);
 
   return (
     <div className="flex flex-col gap-lg">
@@ -94,7 +103,7 @@ export function Sales() {
 
           {/* Mobile: card list */}
           <div className="sm:hidden divide-y divide-surface-border">
-            {sales.map((s) => (
+            {pagedSales.map((s) => (
               <div key={s.id} className="p-lg flex flex-col gap-sm">
                 <div className="flex justify-between items-start gap-sm">
                   <div>
@@ -165,7 +174,7 @@ export function Sales() {
               </tr>
             </Thead>
             <Tbody>
-              {sales.map((s) => (
+              {pagedSales.map((s) => (
                 <Tr key={s.id}>
                   <Td className="text-code-label font-code-label text-primary">{s.invoiceNumber}</Td>
                   <Td className="font-medium text-primary">{s.client.name}</Td>
@@ -218,8 +227,11 @@ export function Sales() {
             </Tbody>
           </Table>
           </div>
-          <div className="px-lg py-md border-t border-surface-border text-body-sm text-on-surface-variant">
-            Showing {sales.length} sale{sales.length === 1 ? "" : "s"}
+          <div className="px-lg py-md border-t border-surface-border flex flex-col sm:flex-row sm:items-center sm:justify-between gap-sm text-body-sm text-on-surface-variant">
+            <span>
+              Showing {rangeStart}-{rangeEnd} of {sales.length} sale{sales.length === 1 ? "" : "s"}
+            </span>
+            <Pagination page={currentPage} totalPages={totalPages} onPageChange={setPage} />
           </div>
         </Card>
       </div>

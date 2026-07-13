@@ -44,10 +44,14 @@ Both pages: add via the form at the top, edit via the pencil icon on any row (pr
 1. Go to **Inventory** (`/inventory`).
 2. Click **Add Product** — opens a dialog: description, category, supplier, purchase date, original cost, quantity purchased, selling price, an optional discount (percentage or fixed EGP amount), and an invoice image upload. Profit % is calculated live as you type ((selling price ÷ original cost − 1) × 100) — you never enter it directly.
 3. Submit — the system auto-generates the next code in that category's range (e.g. `RNG-0007`) and the product appears in the table immediately with full stock.
-4. To fix a mistake later: the pencil icon on any row reopens the same dialog prefilled, for both the details and a new invoice image if needed. The trash icon deletes it.
-5. Use the search box (by code or description) and the category filter to narrow the table down; **Export CSV** exports exactly what's currently showing (respects search/filter).
+4. To fix a mistake later: the pencil icon on any row reopens the same dialog prefilled, for both the details and a new invoice image if needed. **Quantity purchased is locked once the product exists** — it's shown greyed out in the edit dialog, since quantity is only ever changed one way from here on (see "Restocking a sold-out item" below). Everything else (description, category, supplier, cost, price, discount, invoice image) stays editable. The trash icon deletes the product entirely.
+5. Use the search box (by code or description) and the category filter to narrow the table down; the table paginates at 20 rows/page, and the footer shows both the row count and the total units purchased across the current filter (e.g. "Showing 1-20 of 47 products (312 total units purchased)" — a product bought in a batch of 10 counts as 10 toward that total, not 1). **Export CSV** exports the full filtered list regardless of which page you're on.
 
 **Discounts** are a per-product setting, not a one-off event: whatever percentage/fixed discount is set on a product here automatically applies every time that product is sold, on every future invoice — until it's changed or cleared here again. A discounted product shows its original price struck through next to the discounted price in the Inventory table.
+
+### 4.1 Restocking a sold-out item
+
+Once a product's stock reaches zero (`status: SOLD`), the **only** way to add more units to it is from the **Dashboard**'s Sold Out Items section (see §6) — not the Inventory edit dialog. Click **Restock** on that product's row, enter the additional quantity, confirm. This is enforced server-side too: the restock endpoint rejects the request unless the product is actually sold out, and the product-edit endpoint no longer accepts a quantity field at all.
 
 ---
 
@@ -56,12 +60,12 @@ Both pages: add via the form at the top, edit via the pencil icon on any row (pr
 1. New or returning client? New → add them once on **Clients** (`/clients`, name + mobile required, address optional). Returning → they're already in the picker.
 2. Click **New Sale** (sidebar button, or the "Record New Sale" shortcut on the Sales page) → opens `/sales/new`, a dedicated checkout screen.
 3. Pick the client from the dropdown.
-4. Add products to the cart one at a time from the product picker (only items with stock show up); adjust quantity with the +/- steppers, remove a line with the × — the system won't let you exceed available stock.
+4. Add products to the cart one at a time: first pick a **Category**, which unlocks the **Add Product** dropdown listing only in-stock products from that category; pick one and click Add. Adjust quantity with the +/- steppers, remove a line with the × — the system won't let you exceed available stock.
 5. Each line's discount defaults to whatever discount (if any) is configured on that product, but it's fully editable right there in the cart — type/percentage/amount can be changed or cleared per line. This only affects the current invoice; it never changes the product's own discount setting.
 6. Review the subtotal / discount / total, click **Complete Sale**.
-7. Behind the scenes, in one transaction: stock is deducted, each product's status flips to In Stock / Partially Sold / Sold Out as appropriate, an invoice number is issued, and a PDF is generated.
+7. Behind the scenes, in one transaction: stock is deducted, each product's status flips to In Stock / Partially Sold / Sold Out as appropriate, an invoice number is issued in the form `{ClientFirstName}-{Mobile}-{sequence}` (e.g. `Ahmed-01012345678-000008` — the trailing 6-digit sequence keeps it unique even across repeat sales to the same client), and a PDF is generated using that same string as its filename.
 8. You land on the **Invoice Preview** (`/sales/:id/preview`) — a styled, print-ready view of that invoice, itemizing any discount per line and in the total. **Print** opens the browser print dialog; **Download PDF** saves the generated file (Arabic product names/addresses render correctly, joined and right-to-left).
-9. Every past sale stays in **Sales** (`/sales`) history: Today's Revenue card, and a table with a "view" icon (reopens that invoice preview), a "download" icon (grabs the PDF directly), and a "refund" icon per row.
+9. Every past sale stays in **Sales** (`/sales`) history: Today's Revenue card, and a "Recent Transactions" table (paginated at 6/page) with a "view" icon (reopens that invoice preview), a "download" icon (grabs the PDF directly), and a "refund" icon per row.
 
 ### 5.1 Refunds
 
@@ -75,10 +79,10 @@ Any past sale can be partially or fully refunded from **Sales** (`/sales`) — c
 
 ## 6. Ongoing monitoring
 
-- **Dashboard** (`/`) — 8 KPI tiles pulled live from the database: total products, total stock units, stock value, in-stock count, sold-out count, low-stock count (≤2 units), sales this month, revenue this month (net of any refunds). Below that, a **Revenue Explorer** card lets you filter revenue by time range (today/week/month/year/custom dates), category, client, or product, showing gross revenue, refunded amount, and net revenue for whatever's selected. Below that, a **Stock by Category** card grid shows units in stock and total original cost per category. "Add Item" jumps to Inventory.
-- **Inventory** — search/filter any time to check live stock, cost, and selling price per item; export the current view to CSV for offline reporting.
+- **Dashboard** (`/`) — 6 KPI tiles pulled live from the database: total products, total stock units, stock value, sold-out count, sales this month, revenue this month (net of any refunds). Below that, a **Revenue Explorer** card lets you filter revenue by time range (today/week/month/year/custom dates), category, client, or product, showing gross revenue, refunded amount, and net revenue for whatever's selected. Below that, a **Sold Out Items** section lists every product with zero stock left (paginated at 6/page) with a one-click **Restock** action per row (see §4.1). Below that, a **Stock by Category** card grid shows units in stock and total original cost per category. "Add Item" jumps to Inventory.
+- **Inventory** — search/filter any time to check live stock, cost, and selling price per item (paginated at 20/page); export the current view to CSV for offline reporting.
 - **Clients** — export the directory to CSV any time.
-- **Sales** — Today's Revenue at a glance (net of refunds), full transaction history, re-view or re-download any past invoice, or refund one.
+- **Sales** — Today's Revenue at a glance (net of refunds), full transaction history (paginated at 6/page), re-view or re-download any past invoice, or refund one.
 - **Account** (`/account`) — change your own password, and (as admin) create additional admin logins. No separate "staff" role exists yet — every logged-in admin has full access.
 
 ---
@@ -89,6 +93,6 @@ Kept out because the backend doesn't track it (rather than faking it with placeh
 - Tax or payment method on a sale.
 - A due date on an invoice.
 - Client email (only name/mobile/address are stored).
-- Pagination (the API returns full result sets; tables show a real count instead of fake page controls).
+- Pagination on Categories, Suppliers, and Clients — those tables still render the full list with a real count. (Inventory, the dashboard's Sold Out Items, and Sales history do paginate — client-side, at 20/6/6 rows per page respectively — since those lists are the ones that grow large enough to matter; the API still returns the full filtered result set in each case.)
 - Trend/comparison arrows on the dashboard (e.g. "+12% vs yesterday") — no historical snapshot is stored to compare against.
 - A profile photo for admin users — the top bar shows initials instead.

@@ -41,6 +41,8 @@ export async function createProduct(input: CreateProductInput) {
   });
 }
 
+// Quantity is deliberately excluded: it's fixed at creation and can only be increased
+// afterwards via restockProduct, which is restricted to sold-out products.
 export interface UpdateProductInput {
   description?: string;
   categoryId?: number;
@@ -48,7 +50,6 @@ export interface UpdateProductInput {
   purchaseDate?: Date;
   originalCost?: number;
   profitPercent?: number;
-  quantity?: number;
   invoiceImageUrl?: string;
   discountType?: DiscountType;
   discountValue?: number;
@@ -75,6 +76,31 @@ export async function updateProduct(id: number, input: UpdateProductInput) {
       discountType,
       discountValue,
     },
+    include: { category: true, supplier: true },
+  });
+}
+
+function computeStatus(quantity: number, quantitySold: number): "IN_STOCK" | "SOLD" | "PARTIALLY_SOLD" {
+  if (quantitySold >= quantity) return "SOLD";
+  if (quantitySold > 0) return "PARTIALLY_SOLD";
+  return "IN_STOCK";
+}
+
+// Adds more purchased quantity to a sold-out product. Restricted to SOLD products since
+// stock is only ever replenished from the dashboard's Sold Out Items section.
+export async function restockProduct(id: number, additionalQuantity: number) {
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing) throw Object.assign(new Error("Product not found"), { status: 404 });
+  if (existing.status !== "SOLD") {
+    throw Object.assign(new Error("Only sold-out products can be restocked"), { status: 400 });
+  }
+
+  const quantity = existing.quantity + additionalQuantity;
+  const status = computeStatus(quantity, existing.quantitySold);
+
+  return prisma.product.update({
+    where: { id },
+    data: { quantity, status },
     include: { category: true, supplier: true },
   });
 }

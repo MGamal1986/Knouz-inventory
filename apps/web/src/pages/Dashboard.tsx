@@ -3,7 +3,11 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { KpiCard } from "../components/ui/KpiCard";
 import { Icon } from "../components/ui/Icon";
+import { Button } from "../components/ui/Button";
+import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
+import { Pagination } from "../components/ui/Pagination";
 import { RevenueExplorer } from "../components/RevenueExplorer";
+import { RestockModal } from "../components/RestockModal";
 
 interface CategoryStat {
   categoryId: number;
@@ -17,23 +21,57 @@ interface Summary {
   totalStockUnits: number;
   totalStockValue: number;
   soldCount: number;
-  inStockCount: number;
-  lowStockCount: number;
   salesCountThisMonth: number;
   revenueThisMonth: number;
   categoryStats: CategoryStat[];
+}
+
+interface SoldOutProduct {
+  id: number;
+  productCode: string;
+  description: string;
+  category: { name: string };
+  quantity: number;
+  quantitySold: number;
 }
 
 function formatEgp(value: number) {
   return `EGP ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
+const SOLD_OUT_PAGE_SIZE = 6;
+
 export function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [soldOutItems, setSoldOutItems] = useState<SoldOutProduct[]>([]);
+  const [soldOutPage, setSoldOutPage] = useState(1);
+  const [restockTarget, setRestockTarget] = useState<SoldOutProduct | null>(null);
+
+  function loadSummary() {
+    api.get("/api/dashboard/summary").then((res) => setSummary(res.data));
+  }
+
+  function loadSoldOut() {
+    api.get("/api/dashboard/sold-out").then((res) => setSoldOutItems(res.data));
+  }
 
   useEffect(() => {
-    api.get("/api/dashboard/summary").then((res) => setSummary(res.data));
+    loadSummary();
+    loadSoldOut();
   }, []);
+
+  function onRestocked() {
+    setRestockTarget(null);
+    loadSummary();
+    loadSoldOut();
+  }
+
+  const soldOutTotalPages = Math.max(1, Math.ceil(soldOutItems.length / SOLD_OUT_PAGE_SIZE));
+  const soldOutCurrentPage = Math.min(soldOutPage, soldOutTotalPages);
+  const pagedSoldOutItems = soldOutItems.slice(
+    (soldOutCurrentPage - 1) * SOLD_OUT_PAGE_SIZE,
+    soldOutCurrentPage * SOLD_OUT_PAGE_SIZE
+  );
 
   if (!summary) {
     return <p className="text-on-surface-variant">Loading...</p>;
@@ -59,24 +97,54 @@ export function Dashboard() {
           icon="payments"
           iconClassName="text-artisan-gold"
         />
-        <KpiCard
-          label="In Stock Items"
-          value={summary.inStockCount}
-          icon="check_circle"
-          iconClassName="text-success-emerald"
-        />
         <KpiCard label="Sold Out Items" value={summary.soldCount} icon="sell" iconClassName="text-error" />
-        <KpiCard
-          label="Low Stock (≤ 2)"
-          value={summary.lowStockCount}
-          icon="warning"
-          iconClassName="text-warning-amber"
-        />
         <KpiCard label="Sales This Month" value={summary.salesCountThisMonth} icon="receipt_long" />
         <KpiCard label="Revenue This Month" value={formatEgp(summary.revenueThisMonth)} icon="bar_chart" dark />
       </div>
 
       <RevenueExplorer />
+
+      <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
+        <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Sold Out Items</h3>
+        {soldOutItems.length === 0 ? (
+          <p className="text-body-md text-on-surface-variant">No sold out items right now.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <Thead>
+                <tr>
+                  <Th>Product Code</Th>
+                  <Th>Description</Th>
+                  <Th>Category</Th>
+                  <Th className="text-center">Purchased</Th>
+                  <Th className="text-center">Sold</Th>
+                  <Th className="w-32" />
+                </tr>
+              </Thead>
+              <Tbody>
+                {pagedSoldOutItems.map((item) => (
+                  <Tr key={item.id}>
+                    <Td className="text-code-label font-code-label text-primary">{item.productCode}</Td>
+                    <Td className="font-medium text-primary">{item.description}</Td>
+                    <Td className="text-on-surface-variant">{item.category.name}</Td>
+                    <Td className="text-center">{item.quantity}</Td>
+                    <Td className="text-center">{item.quantitySold}</Td>
+                    <Td className="text-right">
+                      <Button variant="ghost" onClick={() => setRestockTarget(item)}>
+                        <Icon name="add_box" className="text-[18px]" />
+                        Restock
+                      </Button>
+                    </Td>
+                  </Tr>
+                ))}
+              </Tbody>
+            </Table>
+            <div className="pt-md flex justify-end">
+              <Pagination page={soldOutCurrentPage} totalPages={soldOutTotalPages} onPageChange={setSoldOutPage} />
+            </div>
+          </div>
+        )}
+      </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
         <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Stock by Category</h3>
@@ -113,6 +181,14 @@ export function Dashboard() {
           <span className="text-body-sm font-body-sm text-on-background">Add Item</span>
         </Link>
       </div>
+
+      {restockTarget && (
+        <RestockModal
+          product={restockTarget}
+          onClose={() => setRestockTarget(null)}
+          onRestocked={onRestocked}
+        />
+      )}
     </div>
   );
 }
