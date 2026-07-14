@@ -101,8 +101,12 @@ export function Inventory() {
 
   async function onDelete(id: number) {
     if (!confirm("Delete this product?")) return;
-    await api.delete(`/api/products/${id}`);
-    loadInventory();
+    try {
+      await api.delete(`/api/products/${id}`);
+      loadInventory();
+    } catch (err: any) {
+      alert(err.response?.data?.error || "Failed to delete product");
+    }
   }
 
   function openAddModal() {

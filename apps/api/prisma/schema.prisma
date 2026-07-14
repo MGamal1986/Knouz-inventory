@@ -68,6 +68,7 @@ model Product {
   invoiceImageUrl String?
   status          ProductStatus @default(IN_STOCK)
   saleItems       SaleItem[]
+  deletedAt       DateTime?
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 }

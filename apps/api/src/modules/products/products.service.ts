@@ -57,7 +57,7 @@ export interface UpdateProductInput {
 
 export async function updateProduct(id: number, input: UpdateProductInput) {
   const existing = await prisma.product.findUnique({ where: { id } });
-  if (!existing) throw Object.assign(new Error("Product not found"), { status: 404 });
+  if (!existing || existing.deletedAt) throw Object.assign(new Error("Product not found"), { status: 404 });
 
   const originalCost = input.originalCost ?? Number(existing.originalCost);
   const profitPercent = input.profitPercent ?? Number(existing.profitPercent);
@@ -90,7 +90,7 @@ function computeStatus(quantity: number, quantitySold: number): "IN_STOCK" | "SO
 // stock is only ever replenished from the dashboard's Sold Out Items section.
 export async function restockProduct(id: number, additionalQuantity: number) {
   const existing = await prisma.product.findUnique({ where: { id } });
-  if (!existing) throw Object.assign(new Error("Product not found"), { status: 404 });
+  if (!existing || existing.deletedAt) throw Object.assign(new Error("Product not found"), { status: 404 });
   if (existing.status !== "SOLD") {
     throw Object.assign(new Error("Only sold-out products can be restocked"), { status: 400 });
   }
@@ -113,6 +113,7 @@ export async function listProducts(filters: {
 }) {
   return prisma.product.findMany({
     where: {
+      deletedAt: null,
       categoryId: filters.categoryId,
       supplierId: filters.supplierId,
       status: filters.status,
@@ -131,12 +132,18 @@ export async function listProducts(filters: {
 }
 
 export async function getProductByCode(code: string) {
-  return prisma.product.findUnique({
-    where: { productCode: code },
+  return prisma.product.findFirst({
+    where: { productCode: code, deletedAt: null },
     include: { category: true, supplier: true },
   });
 }
 
+// Soft delete: keeps the row (and its unique productCode) around forever so sale
+// history/invoices/reports referencing it stay intact and the code is never reissued.
 export async function deleteProduct(id: number) {
-  return prisma.product.delete({ where: { id } });
+  const existing = await prisma.product.findUnique({ where: { id } });
+  if (!existing || existing.deletedAt) {
+    throw Object.assign(new Error("Product not found"), { status: 404 });
+  }
+  return prisma.product.update({ where: { id }, data: { deletedAt: new Date() } });
 }

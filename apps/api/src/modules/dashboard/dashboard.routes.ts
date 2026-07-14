@@ -7,9 +7,11 @@ router.use(requireAuth);
 
 router.get("/summary", async (_req, res, next) => {
   try {
-    const [products, categories] = await Promise.all([
-      prisma.product.findMany(),
+    const [products, categories, allSaleItems] = await Promise.all([
+      prisma.product.findMany({ where: { deletedAt: null } }),
       prisma.category.findMany({ orderBy: { name: "asc" } }),
+      // Not filtered by deletedAt: past profit stays intact even if the product was later deleted.
+      prisma.saleItem.findMany({ include: { product: true } }),
     ]);
 
     const totalProducts = products.length;
@@ -19,6 +21,12 @@ router.get("/summary", async (_req, res, next) => {
       0
     );
     const soldCount = products.filter((p) => p.status === "SOLD").length;
+
+    // Net of refunds: a refunded unit was never actually kept as profit.
+    const totalActualProfit = allSaleItems.reduce((sum, item) => {
+      const netQuantity = item.quantity - item.refundedQuantity;
+      return sum + (Number(item.unitPrice) - Number(item.product.originalCost)) * netQuantity;
+    }, 0);
 
     const startOfMonth = new Date();
     startOfMonth.setDate(1);
@@ -53,6 +61,7 @@ router.get("/summary", async (_req, res, next) => {
       totalProducts,
       totalStockUnits,
       totalStockValue: Math.round(totalStockValue * 100) / 100,
+      totalActualProfit: Math.round(totalActualProfit * 100) / 100,
       soldCount,
       salesCountThisMonth,
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
@@ -67,7 +76,7 @@ router.get("/summary", async (_req, res, next) => {
 router.get("/sold-out", async (_req, res, next) => {
   try {
     const products = await prisma.product.findMany({
-      where: { status: "SOLD" },
+      where: { status: "SOLD", deletedAt: null },
       include: { category: true, supplier: true },
       orderBy: { updatedAt: "desc" },
     });

@@ -61,7 +61,7 @@ export async function createSale(input: CreateSaleInput) {
 
     for (const item of input.items) {
       const product = await tx.product.findUnique({ where: { id: item.productId } });
-      if (!product) {
+      if (!product || product.deletedAt) {
         throw Object.assign(new Error(`Product ${item.productId} not found`), { status: 404 });
       }
 

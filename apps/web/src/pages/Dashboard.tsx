@@ -20,6 +20,7 @@ interface Summary {
   totalProducts: number;
   totalStockUnits: number;
   totalStockValue: number;
+  totalActualProfit: number;
   soldCount: number;
   salesCountThisMonth: number;
   revenueThisMonth: number;
@@ -96,6 +97,12 @@ export function Dashboard() {
           value={formatEgp(summary.totalStockValue)}
           icon="payments"
           iconClassName="text-artisan-gold"
+        />
+        <KpiCard
+          label="Actual Profit"
+          value={formatEgp(summary.totalActualProfit)}
+          icon="trending_up"
+          iconClassName="text-success-emerald"
         />
         <KpiCard label="Sold Out Items" value={summary.soldCount} icon="sell" iconClassName="text-error" />
         <KpiCard label="Sales This Month" value={summary.salesCountThisMonth} icon="receipt_long" />
