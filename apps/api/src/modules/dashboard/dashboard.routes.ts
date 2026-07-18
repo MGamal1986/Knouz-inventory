@@ -86,6 +86,58 @@ router.get("/sold-out", async (_req, res, next) => {
   }
 });
 
+// Top 5 products and top 5 categories by net units sold (quantity sold minus refunds),
+// all-time. Not filtered by product deletedAt: past sales history stays intact.
+router.get("/top-selling", async (_req, res, next) => {
+  try {
+    const saleItems = await prisma.saleItem.findMany({
+      include: { product: { include: { category: true } } },
+    });
+
+    const productTotals = new Map<
+      number,
+      { productId: number; productCode: string; description: string; unitsSold: number }
+    >();
+    const categoryTotals = new Map<number, { categoryId: number; categoryName: string; unitsSold: number }>();
+
+    for (const item of saleItems) {
+      const netQuantity = item.quantity - item.refundedQuantity;
+      if (netQuantity <= 0) continue;
+      const { product } = item;
+
+      const productEntry = productTotals.get(product.id);
+      if (productEntry) {
+        productEntry.unitsSold += netQuantity;
+      } else {
+        productTotals.set(product.id, {
+          productId: product.id,
+          productCode: product.productCode,
+          description: product.description,
+          unitsSold: netQuantity,
+        });
+      }
+
+      const categoryEntry = categoryTotals.get(product.categoryId);
+      if (categoryEntry) {
+        categoryEntry.unitsSold += netQuantity;
+      } else {
+        categoryTotals.set(product.categoryId, {
+          categoryId: product.categoryId,
+          categoryName: product.category.name,
+          unitsSold: netQuantity,
+        });
+      }
+    }
+
+    const topProducts = [...productTotals.values()].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
+    const topCategories = [...categoryTotals.values()].sort((a, b) => b.unitsSold - a.unitsSold).slice(0, 5);
+
+    res.json({ topProducts, topCategories });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // Filterable revenue explorer: time range, category, client, and/or product.
 // Net of refunds, since a refunded unit was never actually kept as revenue.
 router.get("/revenue", async (req, res, next) => {

@@ -86,13 +86,17 @@ router.put("/:id", upload.single("invoiceImage"), async (req, res, next) => {
 
 const restockSchema = z.object({
   quantity: z.coerce.number().int().positive(),
+  originalCost: z.coerce.number().positive().optional(),
+  profitPercent: z.coerce.number().min(0).optional(),
+  discountType: discountTypeSchema.optional(),
+  discountValue: z.coerce.number().min(0).optional(),
 });
 
 router.post("/:id/restock", async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const { quantity } = restockSchema.parse(req.body);
-    const product = await productsService.restockProduct(id, quantity);
+    const { quantity, ...pricing } = restockSchema.parse(req.body);
+    const product = await productsService.restockProduct(id, { additionalQuantity: quantity, ...pricing });
     res.json(product);
   } catch (err) {
     next(err);

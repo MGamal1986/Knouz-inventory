@@ -8,6 +8,7 @@ import { Input, Select } from "../components/ui/FormField";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Pagination } from "../components/ui/Pagination";
 import { ProductFormModal, EditableProduct, DiscountType } from "../components/ProductFormModal";
+import { RestockModal } from "../components/RestockModal";
 import { downloadCsv } from "../utils/csv";
 
 interface Category {
@@ -70,6 +71,7 @@ export function Inventory() {
   const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<EditableProduct | null>(null);
+  const [restockTarget, setRestockTarget] = useState<InventoryItem | null>(null);
 
   function loadInventory(searchValue = search, categoryValue = categoryId) {
     api
@@ -133,6 +135,11 @@ export function Inventory() {
   function onSaved() {
     setModalOpen(false);
     setEditingProduct(null);
+    loadInventory();
+  }
+
+  function onRestocked() {
+    setRestockTarget(null);
     loadInventory();
   }
 
@@ -258,6 +265,14 @@ export function Inventory() {
                   <div className="flex items-center justify-end gap-sm">
                     <button
                       type="button"
+                      onClick={() => setRestockTarget(item)}
+                      className="text-on-surface-variant hover:text-primary"
+                      aria-label="Restock product"
+                    >
+                      <Icon name="add_box" />
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => openEditModal(item)}
                       className="text-on-surface-variant hover:text-primary"
                       aria-label="Edit product"
@@ -294,6 +309,14 @@ export function Inventory() {
           editingProduct={editingProduct}
           onClose={() => setModalOpen(false)}
           onSaved={onSaved}
+        />
+      )}
+
+      {restockTarget && (
+        <RestockModal
+          product={restockTarget}
+          onClose={() => setRestockTarget(null)}
+          onRestocked={onRestocked}
         />
       )}
     </div>

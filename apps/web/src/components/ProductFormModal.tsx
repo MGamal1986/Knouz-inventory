@@ -95,7 +95,7 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
     fd.append("originalCost", form.originalCost);
     fd.append("profitPercent", computedProfitPercent);
     // Quantity is only settable at creation; once a product exists, stock is only added
-    // via the Restock action on sold-out items in the dashboard.
+    // via the Restock action in the Inventory table.
     if (!editingProduct) fd.append("quantity", form.quantity);
     fd.append("discountType", form.discountType);
     fd.append("discountValue", form.discountType === "NONE" ? "0" : form.discountValue || "0");
@@ -195,7 +195,7 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
             />
             {editingProduct && (
               <p className="text-body-sm text-on-surface-variant mt-xs">
-                Quantity can't be edited here — restock sold-out items from the dashboard instead.
+                Quantity can't be edited here — use the Restock action on this product instead.
               </p>
             )}
           </FormField>

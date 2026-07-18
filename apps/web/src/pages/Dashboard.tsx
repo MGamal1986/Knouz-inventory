@@ -3,11 +3,9 @@ import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { KpiCard } from "../components/ui/KpiCard";
 import { Icon } from "../components/ui/Icon";
-import { Button } from "../components/ui/Button";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Pagination } from "../components/ui/Pagination";
 import { RevenueExplorer } from "../components/RevenueExplorer";
-import { RestockModal } from "../components/RestockModal";
 
 interface CategoryStat {
   categoryId: number;
@@ -36,6 +34,24 @@ interface SoldOutProduct {
   quantitySold: number;
 }
 
+interface TopProduct {
+  productId: number;
+  productCode: string;
+  description: string;
+  unitsSold: number;
+}
+
+interface TopCategory {
+  categoryId: number;
+  categoryName: string;
+  unitsSold: number;
+}
+
+interface TopSelling {
+  topProducts: TopProduct[];
+  topCategories: TopCategory[];
+}
+
 function formatEgp(value: number) {
   return `EGP ${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -46,7 +62,7 @@ export function Dashboard() {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [soldOutItems, setSoldOutItems] = useState<SoldOutProduct[]>([]);
   const [soldOutPage, setSoldOutPage] = useState(1);
-  const [restockTarget, setRestockTarget] = useState<SoldOutProduct | null>(null);
+  const [topSelling, setTopSelling] = useState<TopSelling | null>(null);
 
   function loadSummary() {
     api.get("/api/dashboard/summary").then((res) => setSummary(res.data));
@@ -56,16 +72,15 @@ export function Dashboard() {
     api.get("/api/dashboard/sold-out").then((res) => setSoldOutItems(res.data));
   }
 
+  function loadTopSelling() {
+    api.get("/api/dashboard/top-selling").then((res) => setTopSelling(res.data));
+  }
+
   useEffect(() => {
     loadSummary();
     loadSoldOut();
+    loadTopSelling();
   }, []);
-
-  function onRestocked() {
-    setRestockTarget(null);
-    loadSummary();
-    loadSoldOut();
-  }
 
   const soldOutTotalPages = Math.max(1, Math.ceil(soldOutItems.length / SOLD_OUT_PAGE_SIZE));
   const soldOutCurrentPage = Math.min(soldOutPage, soldOutTotalPages);
@@ -125,7 +140,6 @@ export function Dashboard() {
                   <Th>Category</Th>
                   <Th className="text-center">Purchased</Th>
                   <Th className="text-center">Sold</Th>
-                  <Th className="w-32" />
                 </tr>
               </Thead>
               <Tbody>
@@ -136,12 +150,6 @@ export function Dashboard() {
                     <Td className="text-on-surface-variant">{item.category.name}</Td>
                     <Td className="text-center">{item.quantity}</Td>
                     <Td className="text-center">{item.quantitySold}</Td>
-                    <Td className="text-right">
-                      <Button variant="ghost" onClick={() => setRestockTarget(item)}>
-                        <Icon name="add_box" className="text-[18px]" />
-                        Restock
-                      </Button>
-                    </Td>
                   </Tr>
                 ))}
               </Tbody>
@@ -179,6 +187,57 @@ export function Dashboard() {
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
+        <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Top Selling</h3>
+        {!topSelling || (topSelling.topProducts.length === 0 && topSelling.topCategories.length === 0) ? (
+          <p className="text-body-md text-on-surface-variant">No sales recorded yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
+            <div>
+              <h4 className="text-body-md font-medium text-on-surface-variant mb-sm">Top Products</h4>
+              <ul className="divide-y divide-surface-border">
+                {topSelling.topProducts.map((p, i) => (
+                  <li key={p.productId} className="flex items-center justify-between py-sm gap-md">
+                    <div className="flex items-center gap-sm min-w-0">
+                      <span className="text-body-sm font-semibold text-artisan-gold w-5 shrink-0">#{i + 1}</span>
+                      <div className="min-w-0">
+                        <p className="text-body-sm font-medium text-primary truncate">{p.description}</p>
+                        <p className="text-code-label font-code-label text-on-surface-variant">{p.productCode}</p>
+                      </div>
+                    </div>
+                    <span className="text-body-sm font-semibold text-on-background shrink-0">
+                      {p.unitsSold} sold
+                    </span>
+                  </li>
+                ))}
+                {topSelling.topProducts.length === 0 && (
+                  <li className="py-sm text-body-sm text-on-surface-variant">No product sales yet.</li>
+                )}
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-body-md font-medium text-on-surface-variant mb-sm">Top Categories</h4>
+              <ul className="divide-y divide-surface-border">
+                {topSelling.topCategories.map((c, i) => (
+                  <li key={c.categoryId} className="flex items-center justify-between py-sm gap-md">
+                    <div className="flex items-center gap-sm min-w-0">
+                      <span className="text-body-sm font-semibold text-artisan-gold w-5 shrink-0">#{i + 1}</span>
+                      <span className="text-body-sm font-medium text-primary truncate">{c.categoryName}</span>
+                    </div>
+                    <span className="text-body-sm font-semibold text-on-background shrink-0">
+                      {c.unitsSold} sold
+                    </span>
+                  </li>
+                ))}
+                {topSelling.topCategories.length === 0 && (
+                  <li className="py-sm text-body-sm text-on-surface-variant">No category sales yet.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
         <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Quick Actions</h3>
         <Link
           to="/inventory"
@@ -188,14 +247,6 @@ export function Dashboard() {
           <span className="text-body-sm font-body-sm text-on-background">Add Item</span>
         </Link>
       </div>
-
-      {restockTarget && (
-        <RestockModal
-          product={restockTarget}
-          onClose={() => setRestockTarget(null)}
-          onRestocked={onRestocked}
-        />
-      )}
     </div>
   );
 }
