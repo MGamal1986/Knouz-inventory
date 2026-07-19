@@ -21,12 +21,8 @@ interface Summary {
   totalActualProfit: number;
   soldCount: number;
   salesCountThisMonth: number;
-<<<<<<< HEAD
   revenueThisMonth: number;
   capital: number;
-=======
-  revenue: number;
->>>>>>> e1aedba9b348fa8b530415902106c7e92f77ae99
   categoryStats: CategoryStat[];
 }
 
@@ -126,11 +122,7 @@ export function Dashboard() {
         />
         <KpiCard label="Sold Out Items" value={summary.soldCount} icon="sell" iconClassName="text-error" />
         <KpiCard label="Sales This Month" value={summary.salesCountThisMonth} icon="receipt_long" />
-<<<<<<< HEAD
         <KpiCard label="Capital" value={formatEgp(summary.capital)} icon="account_balance_wallet" dark />
-=======
-        <KpiCard label="Revenue" value={formatEgp(summary.revenue)} icon="bar_chart" dark />
->>>>>>> e1aedba9b348fa8b530415902106c7e92f77ae99
       </div>
 
       <RevenueExplorer />

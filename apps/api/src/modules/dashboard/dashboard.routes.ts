@@ -6,11 +6,6 @@ import { getCapitalBalance } from "../capital/capital.service";
 const router = Router();
 router.use(requireAuth);
 
-// Products added on/after this date have their full purchase cost (originalCost * quantity)
-// deducted from the revenue card, since that capital went back into buying new stock rather
-// than staying in hand. Fixed cutoff, not a rolling window.
-const CAPITAL_CUTOFF_DATE = new Date("2026-07-19T00:00:00");
-
 router.get("/summary", async (_req, res, next) => {
   try {
     const [products, categories, allSaleItems] = await Promise.all([
@@ -38,7 +33,6 @@ router.get("/summary", async (_req, res, next) => {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-<<<<<<< HEAD
     const [salesCountThisMonth, saleItemsThisMonth, capital] = await Promise.all([
       prisma.sale.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.saleItem.findMany({ where: { sale: { createdAt: { gte: startOfMonth } } } }),
@@ -46,20 +40,9 @@ router.get("/summary", async (_req, res, next) => {
     ]);
     // Net of refunds: a refunded unit never counted as revenue.
     const revenueThisMonth = saleItemsThisMonth.reduce(
-=======
-    const salesCountThisMonth = await prisma.sale.count({ where: { createdAt: { gte: startOfMonth } } });
-
-    // All-time, no date filter. Net of refunds: a refunded unit never counted as revenue.
-    const totalNetRevenue = allSaleItems.reduce(
->>>>>>> e1aedba9b348fa8b530415902106c7e92f77ae99
       (sum, item) => sum + Number(item.unitPrice) * (item.quantity - item.refundedQuantity),
       0
     );
-    // Cost of stock bought since the cutoff is capital, not revenue, so it's deducted here.
-    const postCutoffCapitalCost = products
-      .filter((p) => p.createdAt >= CAPITAL_CUTOFF_DATE)
-      .reduce((sum, p) => sum + p.quantity * Number(p.originalCost), 0);
-    const revenue = totalNetRevenue - postCutoffCapitalCost;
 
     const categoryStats = categories.map((cat) => {
       const catProducts = products.filter((p) => p.categoryId === cat.id);
@@ -83,12 +66,8 @@ router.get("/summary", async (_req, res, next) => {
       totalActualProfit: Math.round(totalActualProfit * 100) / 100,
       soldCount,
       salesCountThisMonth,
-<<<<<<< HEAD
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
       capital,
-=======
-      revenue: Math.round(revenue * 100) / 100,
->>>>>>> e1aedba9b348fa8b530415902106c7e92f77ae99
       categoryStats,
     });
   } catch (err) {
