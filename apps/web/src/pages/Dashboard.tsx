@@ -22,6 +22,7 @@ interface Summary {
   soldCount: number;
   salesCountThisMonth: number;
   revenueThisMonth: number;
+  capital: number;
   categoryStats: CategoryStat[];
 }
 
@@ -121,7 +122,7 @@ export function Dashboard() {
         />
         <KpiCard label="Sold Out Items" value={summary.soldCount} icon="sell" iconClassName="text-error" />
         <KpiCard label="Sales This Month" value={summary.salesCountThisMonth} icon="receipt_long" />
-        <KpiCard label="Revenue This Month" value={formatEgp(summary.revenueThisMonth)} icon="bar_chart" dark />
+        <KpiCard label="Capital" value={formatEgp(summary.capital)} icon="account_balance_wallet" dark />
       </div>
 
       <RevenueExplorer />

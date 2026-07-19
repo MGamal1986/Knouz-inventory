@@ -35,6 +35,15 @@ async function main() {
     });
     console.log("Seeded starter categories: Rings, Bracelets, Necklaces, Keychains, Accessories");
   }
+
+  // Opening capital balance: recorded once as the first ledger movement.
+  const initialCapital = await prisma.capitalMovement.findFirst({ where: { type: "INITIAL" } });
+  if (!initialCapital) {
+    await prisma.capitalMovement.create({
+      data: { type: "INITIAL", amount: 950, description: "Opening capital balance" },
+    });
+    console.log("Seeded opening capital balance: EGP 950.00");
+  }
 }
 
 main()

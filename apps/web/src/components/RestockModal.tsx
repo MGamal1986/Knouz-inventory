@@ -3,6 +3,7 @@ import { api } from "../api/client";
 import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { FormField, Input, Select } from "./ui/FormField";
+import { Toggle } from "./ui/Toggle";
 import { DiscountType } from "./ProductFormModal";
 
 interface RestockProduct {
@@ -27,8 +28,12 @@ export function RestockModal({ product, onClose, onRestocked }: RestockModalProp
   const [profitPercent, setProfitPercent] = useState(product.profitPercent);
   const [discountType, setDiscountType] = useState<DiscountType>(product.discountType);
   const [discountValue, setDiscountValue] = useState(product.discountValue);
+  const [fromCapital, setFromCapital] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const restockCost =
+    Number(originalCost) > 0 && Number(quantity) > 0 ? Number(originalCost) * Number(quantity) : 0;
 
   const computedSellingPrice =
     originalCost && profitPercent && Number(originalCost) > 0
@@ -69,6 +74,7 @@ export function RestockModal({ product, onClose, onRestocked }: RestockModalProp
         profitPercent: profitValue,
         discountType,
         discountValue: discountType === "NONE" ? 0 : Number(discountValue) || 0,
+        fromCapital,
       });
       onRestocked();
     } catch (err: any) {
@@ -166,6 +172,17 @@ export function RestockModal({ product, onClose, onRestocked }: RestockModalProp
             </FormField>
           )}
         </div>
+
+        <Toggle
+          checked={fromCapital}
+          onChange={setFromCapital}
+          label="Pay from capital"
+          description={
+            fromCapital
+              ? `Deducts ${restockCost > 0 ? `EGP ${restockCost.toFixed(2)}` : "the restock cost"} from your capital balance.`
+              : "Treated as an outside expense — your capital balance is unchanged."
+          }
+        />
 
         {error && <div className="text-error text-body-sm">{error}</div>}
       </div>

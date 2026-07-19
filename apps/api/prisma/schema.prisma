@@ -119,3 +119,28 @@ model Refund {
   reason       String?
   createdAt    DateTime @default(now())
 }
+
+enum CapitalMovementType {
+  INITIAL  // Opening balance the business started with
+  SALE     // A sale increases capital by its net total
+  REFUND   // A refund rolls back the amount a sale had added
+  PURCHASE // A new product bought "from capital"
+  RESTOCK  // A restock batch bought "from capital"
+}
+
+// Append-only ledger of every change to the business's working capital.
+// The current capital balance is the signed sum of every movement's `amount`
+// (positive = money in, negative = money out). Kept as a ledger rather than a
+// single mutable number so the balance is always auditable and reconstructable,
+// and so restocks — which keep no other history — can be traced.
+model CapitalMovement {
+  id          Int                 @id @default(autoincrement())
+  type        CapitalMovementType
+  amount      Decimal             @db.Decimal(10, 2)
+  description String?
+  saleId      Int?
+  productId   Int?
+  createdAt   DateTime            @default(now())
+
+  @@index([createdAt])
+}

@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { generateNextProductCode } from "../../costing/productCode";
 import { calculateSellingPrice, assertValidDiscount, DiscountType } from "../../costing/pricing";
+import { recordCapitalMovement } from "../capital/capital.service";
 
 export interface CreateProductInput {
   description: string;
@@ -13,6 +14,10 @@ export interface CreateProductInput {
   invoiceImageUrl?: string;
   discountType?: DiscountType;
   discountValue?: number;
+  // When true, the purchase is funded from working capital and deducts
+  // originalCost × quantity from the balance. When false, it's an outside
+  // ("instantaneous") expense that leaves capital untouched.
+  fromCapital?: boolean;
 }
 
 export async function createProduct(input: CreateProductInput) {
@@ -22,22 +27,35 @@ export async function createProduct(input: CreateProductInput) {
   const discountValue = input.discountValue ?? 0;
   assertValidDiscount(discountType, discountValue);
 
-  return prisma.product.create({
-    data: {
-      productCode,
-      description: input.description,
-      categoryId: input.categoryId,
-      supplierId: input.supplierId,
-      purchaseDate: input.purchaseDate,
-      originalCost: input.originalCost,
-      profitPercent: input.profitPercent,
-      sellingPrice,
-      discountType,
-      discountValue,
-      quantity: input.quantity,
-      invoiceImageUrl: input.invoiceImageUrl,
-    },
-    include: { category: true, supplier: true },
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.create({
+      data: {
+        productCode,
+        description: input.description,
+        categoryId: input.categoryId,
+        supplierId: input.supplierId,
+        purchaseDate: input.purchaseDate,
+        originalCost: input.originalCost,
+        profitPercent: input.profitPercent,
+        sellingPrice,
+        discountType,
+        discountValue,
+        quantity: input.quantity,
+        invoiceImageUrl: input.invoiceImageUrl,
+      },
+      include: { category: true, supplier: true },
+    });
+
+    if (input.fromCapital) {
+      await recordCapitalMovement(tx, {
+        type: "PURCHASE",
+        amount: -(input.originalCost * input.quantity),
+        description: `Purchase ${product.productCode} × ${input.quantity}`,
+        productId: product.id,
+      });
+    }
+
+    return product;
   });
 }
 
@@ -92,6 +110,9 @@ export interface RestockInput {
   profitPercent?: number;
   discountType?: DiscountType;
   discountValue?: number;
+  // When true, the restock batch is funded from working capital and deducts
+  // its cost (batch originalCost × additionalQuantity) from the balance.
+  fromCapital?: boolean;
 }
 
 // Adds purchased quantity to any product (sold out or not) and, optionally, updates its
@@ -110,10 +131,25 @@ export async function restockProduct(id: number, input: RestockInput) {
   const quantity = existing.quantity + input.additionalQuantity;
   const status = computeStatus(quantity, existing.quantitySold);
 
-  return prisma.product.update({
-    where: { id },
-    data: { quantity, status, originalCost, profitPercent, sellingPrice, discountType, discountValue },
-    include: { category: true, supplier: true },
+  return prisma.$transaction(async (tx) => {
+    const product = await tx.product.update({
+      where: { id },
+      data: { quantity, status, originalCost, profitPercent, sellingPrice, discountType, discountValue },
+      include: { category: true, supplier: true },
+    });
+
+    if (input.fromCapital) {
+      // The restock batch is priced at the cost supplied for this batch (falling back
+      // to the product's existing cost), not any earlier batch's cost.
+      await recordCapitalMovement(tx, {
+        type: "RESTOCK",
+        amount: -(originalCost * input.additionalQuantity),
+        description: `Restock ${product.productCode} × ${input.additionalQuantity}`,
+        productId: product.id,
+      });
+    }
+
+    return product;
   });
 }
 

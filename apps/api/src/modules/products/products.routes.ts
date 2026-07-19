@@ -45,6 +45,12 @@ const createSchema = z.object({
   quantity: z.coerce.number().int().positive(),
   discountType: discountTypeSchema.optional(),
   discountValue: z.coerce.number().min(0).optional(),
+  // Multipart sends booleans as strings; coerce "true"/"false" explicitly. Defaults
+  // to funding the purchase from capital.
+  fromCapital: z
+    .union([z.boolean(), z.enum(["true", "false"])])
+    .optional()
+    .transform((v) => v !== false && v !== "false"),
 });
 
 router.post("/", upload.single("invoiceImage"), async (req, res, next) => {
@@ -90,6 +96,8 @@ const restockSchema = z.object({
   profitPercent: z.coerce.number().min(0).optional(),
   discountType: discountTypeSchema.optional(),
   discountValue: z.coerce.number().min(0).optional(),
+  // Restock is sent as JSON, so this is a real boolean; default to funding from capital.
+  fromCapital: z.boolean().optional().default(true),
 });
 
 router.post("/:id/restock", async (req, res, next) => {

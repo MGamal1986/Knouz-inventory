@@ -4,6 +4,7 @@ import { Modal } from "./ui/Modal";
 import { Button } from "./ui/Button";
 import { FormField, Input, Select, Textarea } from "./ui/FormField";
 import { Icon } from "./ui/Icon";
+import { Toggle } from "./ui/Toggle";
 
 interface Category {
   id: number;
@@ -66,8 +67,14 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
       : emptyForm
   );
   const [invoiceFile, setInvoiceFile] = useState<File | null>(null);
+  const [fromCapital, setFromCapital] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const purchaseCost =
+    Number(form.originalCost) > 0 && Number(form.quantity) > 0
+      ? Number(form.originalCost) * Number(form.quantity)
+      : 0;
 
   const computedProfitPercent =
     form.originalCost && form.sellingPrice && Number(form.originalCost) > 0
@@ -96,7 +103,10 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
     fd.append("profitPercent", computedProfitPercent);
     // Quantity is only settable at creation; once a product exists, stock is only added
     // via the Restock action in the Inventory table.
-    if (!editingProduct) fd.append("quantity", form.quantity);
+    if (!editingProduct) {
+      fd.append("quantity", form.quantity);
+      fd.append("fromCapital", String(fromCapital));
+    }
     fd.append("discountType", form.discountType);
     fd.append("discountValue", form.discountType === "NONE" ? "0" : form.discountValue || "0");
     if (invoiceFile) fd.append("invoiceImage", invoiceFile);
@@ -280,6 +290,19 @@ export function ProductFormModal({ categories, suppliers, editingProduct, onClos
             />
           </label>
         </FormField>
+
+        {!editingProduct && (
+          <Toggle
+            checked={fromCapital}
+            onChange={setFromCapital}
+            label="Pay from capital"
+            description={
+              fromCapital
+                ? `Deducts ${purchaseCost > 0 ? `EGP ${purchaseCost.toFixed(2)}` : "the purchase cost"} from your capital balance.`
+                : "Treated as an outside expense — your capital balance is unchanged."
+            }
+          />
+        )}
 
         {error && <div className="text-error text-body-sm">{error}</div>}
       </form>

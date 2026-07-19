@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../../lib/prisma";
 import { requireAuth } from "../../middleware/auth";
+import { getCapitalBalance } from "../capital/capital.service";
 
 const router = Router();
 router.use(requireAuth);
@@ -32,9 +33,10 @@ router.get("/summary", async (_req, res, next) => {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const [salesCountThisMonth, saleItemsThisMonth] = await Promise.all([
+    const [salesCountThisMonth, saleItemsThisMonth, capital] = await Promise.all([
       prisma.sale.count({ where: { createdAt: { gte: startOfMonth } } }),
       prisma.saleItem.findMany({ where: { sale: { createdAt: { gte: startOfMonth } } } }),
+      getCapitalBalance(),
     ]);
     // Net of refunds: a refunded unit never counted as revenue.
     const revenueThisMonth = saleItemsThisMonth.reduce(
@@ -65,6 +67,7 @@ router.get("/summary", async (_req, res, next) => {
       soldCount,
       salesCountThisMonth,
       revenueThisMonth: Math.round(revenueThisMonth * 100) / 100,
+      capital,
       categoryStats,
     });
   } catch (err) {

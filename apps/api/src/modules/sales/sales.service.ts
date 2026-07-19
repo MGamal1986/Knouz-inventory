@@ -1,6 +1,7 @@
 import { prisma } from "../../lib/prisma";
 import { generateInvoicePdf, InvoiceLine } from "../../lib/pdf";
 import { calculateDiscountedPrice, assertValidDiscount, DiscountType } from "../../costing/pricing";
+import { recordCapitalMovement } from "../capital/capital.service";
 
 export interface SaleItemInput {
   productId: number;
@@ -137,6 +138,14 @@ export async function createSale(input: CreateSaleInput) {
       include: { items: true, client: true },
     });
 
+    // A sale brings money in: capital grows by the sale's total.
+    await recordCapitalMovement(tx, {
+      type: "SALE",
+      amount: totalAmount,
+      description: `Sale ${invoiceNumber}`,
+      saleId: sale.id,
+    });
+
     return { sale, client, invoiceLines, totalAmount, subtotalAmount, totalDiscount, invoiceNumber };
   });
 
@@ -244,6 +253,15 @@ export async function createRefund(saleId: number, input: CreateRefundInput) {
           refundAmount,
           reason: input.reason,
         },
+      });
+
+      // A refund rolls back the money the sale had added: capital drops by the refunded amount.
+      await recordCapitalMovement(tx, {
+        type: "REFUND",
+        amount: -refundAmount,
+        description: `Refund on sale ${saleId} — ${saleItem.product.productCode}`,
+        saleId,
+        productId: saleItem.productId,
       });
 
       await tx.saleItem.update({
