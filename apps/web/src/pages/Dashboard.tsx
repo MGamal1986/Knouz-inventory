@@ -6,6 +6,39 @@ import { Icon } from "../components/ui/Icon";
 import { Table, Thead, Tbody, Tr, Th, Td } from "../components/ui/Table";
 import { Pagination } from "../components/ui/Pagination";
 import { RevenueExplorer } from "../components/RevenueExplorer";
+import { FormField, Select, Input } from "../components/ui/FormField";
+
+type TopSellingPreset = "today" | "week" | "month" | "year" | "all" | "custom";
+
+function topSellingPresetRange(preset: TopSellingPreset): { from?: string; to?: string } {
+  const now = new Date();
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  if (preset === "all") return {};
+
+  if (preset === "today") {
+    const start = new Date(now);
+    start.setHours(0, 0, 0, 0);
+    return { from: start.toISOString(), to: endOfToday.toISOString() };
+  }
+  if (preset === "week") {
+    const start = new Date(now);
+    const day = (start.getDay() + 6) % 7; // Monday = 0
+    start.setDate(start.getDate() - day);
+    start.setHours(0, 0, 0, 0);
+    return { from: start.toISOString(), to: endOfToday.toISOString() };
+  }
+  if (preset === "month") {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { from: start.toISOString(), to: endOfToday.toISOString() };
+  }
+  if (preset === "year") {
+    const start = new Date(now.getFullYear(), 0, 1);
+    return { from: start.toISOString(), to: endOfToday.toISOString() };
+  }
+  return {};
+}
 
 interface CategoryStat {
   categoryId: number;
@@ -64,6 +97,9 @@ export function Dashboard() {
   const [soldOutItems, setSoldOutItems] = useState<SoldOutProduct[]>([]);
   const [soldOutPage, setSoldOutPage] = useState(1);
   const [topSelling, setTopSelling] = useState<TopSelling | null>(null);
+  const [topSellingPreset, setTopSellingPreset] = useState<TopSellingPreset>("all");
+  const [topSellingFrom, setTopSellingFrom] = useState("");
+  const [topSellingTo, setTopSellingTo] = useState("");
 
   function loadSummary() {
     api.get("/api/dashboard/summary").then((res) => setSummary(res.data));
@@ -73,15 +109,21 @@ export function Dashboard() {
     api.get("/api/dashboard/sold-out").then((res) => setSoldOutItems(res.data));
   }
 
-  function loadTopSelling() {
-    api.get("/api/dashboard/top-selling").then((res) => setTopSelling(res.data));
-  }
-
   useEffect(() => {
     loadSummary();
     loadSoldOut();
-    loadTopSelling();
   }, []);
+
+  useEffect(() => {
+    const range =
+      topSellingPreset === "custom"
+        ? { from: topSellingFrom || undefined, to: topSellingTo ? `${topSellingTo}T23:59:59.999` : undefined }
+        : topSellingPresetRange(topSellingPreset);
+
+    api
+      .get("/api/dashboard/top-selling", { params: range })
+      .then((res) => setTopSelling(res.data));
+  }, [topSellingPreset, topSellingFrom, topSellingTo]);
 
   const soldOutTotalPages = Math.max(1, Math.ceil(soldOutItems.length / SOLD_OUT_PAGE_SIZE));
   const soldOutCurrentPage = Math.min(soldOutPage, soldOutTotalPages);
@@ -188,9 +230,36 @@ export function Dashboard() {
       </div>
 
       <div className="bg-surface-container-lowest rounded-xl border border-surface-border shadow-sm p-lg">
-        <h3 className="text-headline-sm font-headline-sm text-primary mb-md">Top Selling</h3>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-md mb-md">
+          <h3 className="text-headline-sm font-headline-sm text-primary">Top Selling</h3>
+          <div className="flex flex-col sm:flex-row gap-md">
+            <FormField label="Time Range">
+              <Select
+                value={topSellingPreset}
+                onChange={(e) => setTopSellingPreset(e.target.value as TopSellingPreset)}
+              >
+                <option value="today">Today</option>
+                <option value="week">This Week</option>
+                <option value="month">This Month</option>
+                <option value="year">This Year</option>
+                <option value="all">All Time</option>
+                <option value="custom">Custom Range</option>
+              </Select>
+            </FormField>
+            {topSellingPreset === "custom" && (
+              <>
+                <FormField label="From">
+                  <Input type="date" value={topSellingFrom} onChange={(e) => setTopSellingFrom(e.target.value)} />
+                </FormField>
+                <FormField label="To">
+                  <Input type="date" value={topSellingTo} onChange={(e) => setTopSellingTo(e.target.value)} />
+                </FormField>
+              </>
+            )}
+          </div>
+        </div>
         {!topSelling || (topSelling.topProducts.length === 0 && topSelling.topCategories.length === 0) ? (
-          <p className="text-body-md text-on-surface-variant">No sales recorded yet.</p>
+          <p className="text-body-md text-on-surface-variant">No sales recorded for this period.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-lg">
             <div>

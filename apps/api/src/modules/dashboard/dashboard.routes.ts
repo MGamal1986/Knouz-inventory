@@ -89,11 +89,22 @@ router.get("/sold-out", async (_req, res, next) => {
   }
 });
 
-// Top 5 products and top 5 categories by net units sold (quantity sold minus refunds),
-// all-time. Not filtered by product deletedAt: past sales history stays intact.
-router.get("/top-selling", async (_req, res, next) => {
+// Top 5 products and top 5 categories by net units sold (quantity sold minus refunds).
+// Optionally filtered by sale date range (from/to). Not filtered by product deletedAt:
+// past sales history stays intact.
+router.get("/top-selling", async (req, res, next) => {
   try {
+    const { from, to } = req.query;
+
     const saleItems = await prisma.saleItem.findMany({
+      where: {
+        sale: {
+          createdAt: {
+            gte: from ? new Date(String(from)) : undefined,
+            lte: to ? new Date(String(to)) : undefined,
+          },
+        },
+      },
       include: { product: { include: { category: true } } },
     });
 
